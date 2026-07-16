@@ -70,6 +70,65 @@ export const receiveSensorData = onRequest(async (req, res) => {
   //ESP32からのデータを取得
   const sensorData = req.body;
 
+  //入力チェック
+  //データに対して、型チェックと値があるか(undefined、null、空文字ではない)のチェックをする
+  //存在、型、値の順番でチェックする
+  if(!sensorData.sensor_id) {
+    res.status(400).json({
+      status: "error",
+      message: "sensor_id is required",
+    });
+    return;
+  }
+
+  if(typeof sensorData.sensor_id !== "string") {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
+  if(sensorData.ble_device_count === undefined) {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
+  if(typeof sensorData.ble_device_count !== "number") {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
+  if(sensorData.ble_device_count < 0) {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
+  if(!sensorData.location) {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
+  if(typeof sensorData.location !== "string") {
+    res.status().json({
+      status: "error",
+      message: "sensor_id ****",
+    });
+    return;
+  }
+
   //(default)データベースに保存
   await db.collection("sensorData").add(sensorData);
 
