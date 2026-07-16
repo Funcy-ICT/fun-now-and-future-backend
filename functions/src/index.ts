@@ -10,6 +10,12 @@
 import {setGlobalOptions} from "firebase-functions";
 import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+
+
+initializeApp();
+const db = getFirestore();
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -35,11 +41,6 @@ export const health = onRequest((req, res) => {
   });
 });
 
-
-
-
-
-
 /*
 オウム返しするだけ
 
@@ -50,7 +51,7 @@ curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorD
 
 
 */
-export const receiveSensorData = onRequest((req, res) => {
+export const receiveSensorData = onRequest(async (req, res) => {
   //CORS対策(ローカルや別ドメインからのアクセス許可)
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === "OPTIONS") {
@@ -69,6 +70,9 @@ export const receiveSensorData = onRequest((req, res) => {
   //ESP32からのデータを取得
   const sensorData = req.body;
 
+  //(default)データベースに保存
+  await db.collection("sensorData").add(sensorData);
+
   //firebaseのログ
   logger.info("Received data from ESP32", sensorData);
 
@@ -80,3 +84,4 @@ export const receiveSensorData = onRequest((req, res) => {
     data: sensorData
   });
 });
+
