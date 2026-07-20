@@ -82,49 +82,49 @@ export const receiveSensorData = onRequest(async (req, res) => {
   }
 
   if(typeof sensorData.sensor_id !== "string") {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "sensor_id must be a string",
     });
     return;
   }
 
   if(sensorData.ble_device_count === undefined) {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "ble_device_count is required",
     });
     return;
   }
 
   if(typeof sensorData.ble_device_count !== "number") {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "ble_device_count must be a number",
     });
     return;
   }
 
   if(sensorData.ble_device_count < 0) {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "ble_device_count must not be negative",
     });
     return;
   }
 
   if(!sensorData.location) {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "location is required",
     });
     return;
   }
 
   if(typeof sensorData.location !== "string") {
-    res.status().json({
+    res.status(400).json({
       status: "error",
-      message: "sensor_id ****",
+      message: "location must be a string",
     });
     return;
   }
