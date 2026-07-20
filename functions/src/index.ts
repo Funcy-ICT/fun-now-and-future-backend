@@ -17,6 +17,10 @@ import { getFirestore } from "firebase-admin/firestore";
 initializeApp();
 const db = getFirestore();
 
+function todo(): void {
+	logger.info("tooodoooo");
+}
+
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
 
@@ -42,14 +46,9 @@ export const health = onRequest((req, res) => {
 });
 
 /*
-オウム返しするだけ
-
-
+受け取ったら入力チェックして、オウム返しした後データベースに保存
 curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData -H "Content-Type: application/json" -d "{\"sensor_id\": \"esp32_ryoHasegawa_99\", \"location\": \"sapporo\", \"ble_device_count\": 999}"
 {"status":"success","message":"Data received successfully","received_at":"2026-07-13T08:58:29.018Z","data":{"sensor_id":"esp32_ryoHasegawa_99","location":"sapporo","ble_device_count":999}}
-
-
-
 */
 export const receiveSensorData = onRequest(async (req, res) => {
   //CORS対策(ローカルや別ドメインからのアクセス許可)
@@ -144,3 +143,21 @@ export const receiveSensorData = onRequest(async (req, res) => {
   });
 });
 
+export const getCongestion = onRequest (async (req, res) => {
+	if(!location) {
+		res.status(400).json({
+			status: "error",
+			message: "location query parameter is required",
+		});
+		return;
+	}
+
+	const snapshot = await db.collection("sensorData")
+		.where("location", "==", location)
+		.orderBy("received_at", "desc")
+		.limit(1)
+		.get();
+
+	todo();
+
+});
