@@ -17,10 +17,6 @@ import { getFirestore } from "firebase-admin/firestore";
 initializeApp();
 const db = getFirestore();
 
-function todo(): void {
-	logger.info("tooodoooo");
-}
-
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
 
@@ -128,8 +124,13 @@ export const receiveSensorData = onRequest(async (req, res) => {
     return;
   }
 
+  const receivedAt = new Date().toISOString();
+
   //(default)データベースに保存
-  await db.collection("sensorData").add(sensorData);
+  await db.collection("sensorData").add({
+    ...sensorData,
+    received_at: receivedAt,
+  });
 
   //firebaseのログ
   logger.info("Received data from ESP32", sensorData);
@@ -138,13 +139,26 @@ export const receiveSensorData = onRequest(async (req, res) => {
   res.status(200).json({
     status: "success",
     message: "Data received successfully",
-    received_at: new Date().toISOString(),
+    received_at: receivedAt,
     data: sensorData
   });
 });
 
+
+//curl -X GET "http://127.0.0.1:5001/fun-now-and-future/us-central1/getCongestion" -H "Content-Type: application/json" -d "{\"location\": \"sapporo\"}"
+//
 export const getCongestion = onRequest (async (req, res) => {
-	if(!location) {
+  const location = req.query.location;
+  if(typeof location !== "string") {
+    res.status(400).json({
+      status: "error",
+      message: "location query parameter is required",
+    });
+    return;
+  }
+
+
+	if(location === "") {
 		res.status(400).json({
 			status: "error",
 			message: "location query parameter is required",
@@ -154,10 +168,21 @@ export const getCongestion = onRequest (async (req, res) => {
 
 	const snapshot = await db.collection("sensorData")
 		.where("location", "==", location)
-		.orderBy("received_at", "desc")
+    .orderBy("received_at", "desc")
 		.limit(1)
 		.get();
 
-	todo();
+  if(snapshot.empty) {
+    res.status(404).json({
+      status: "error",
+      message: "No data found",
+    });
+    return;
+  }
 
+  const data = snapshot.docs[0].data();
+	res.status(200).json({
+    status: "success",
+    data: data,
+  });
 });
