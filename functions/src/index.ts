@@ -25,7 +25,13 @@ const SensorDataSchema = z.object({
   ble_device_count: z.number().min(0, "ble_device_count must be 0 or greater"),
 });
 
+const LocationQuerySchema = z.object({
+  location: z.string().min(1, "location query parameter is required"),
+});
 
+const HistoryQuerySchema = LocationQuerySchema.extend({
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+});
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -122,23 +128,17 @@ export const receiveSensorData = onRequest(async (req, res) => {
 //curl -X GET "http://127.0.0.1:5001/fun-now-and-future/us-central1/getCongestion" -H "Content-Type: application/json" -d "{\"location\": \"sapporo\"}"
 //
 export const getCongestion = onRequest (async (req, res) => {
-  const location = req.query.location;
-  if(typeof location !== "string") {
+  const parseResult = LocationQuerySchema.safeParse(req.query);
+  if(!parseResult.success) {
     res.status(400).json({
       status: "error",
-      message: "location query parameter is required",
+      message: parseResult.error.issues[0].message,
     });
+
     return;
   }
 
-
-	if(location === "") {
-		res.status(400).json({
-			status: "error",
-			message: "location query parameter is required",
-		});
-		return;
-	}
+  const {location} = parseResult.data;
 
 	const snapshot = await db.collection("sensorData")
 		.where("location", "==", location)
@@ -168,22 +168,17 @@ export const getCongestion = onRequest (async (req, res) => {
 });
 
 export const getCongestionHistory = onRequest(async (req, res) => {
-  const location = req.query.location;
-  const limitQuery = req.query.limit;
-
-  if (typeof location !== "string" || location === "") {
+  const parseResult = HistoryQuerySchema.safeParse(req.query);
+  if(!parseResult.success) {
     res.status(400).json({
       status: "error",
-      message: "location query parameter is required",
+      message: parseResult.error.issues[0].message,
     });
+
     return;
   }
 
-  //デフォルト
-  let limit = 100;
-  if (typeof limitQuery === "string" && !isNaN(Number(limitQuery))) {
-    limit = Math.min(Math.max(Number(limitQuery), 1), 50);
-  }
+  const { location, limit } = parseResult.data;
 
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
