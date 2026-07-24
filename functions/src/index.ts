@@ -13,7 +13,8 @@ import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { z } from "zod";
-import {Hono} from "hono";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 
 
 const app = new Hono();
@@ -61,49 +62,32 @@ app.get("/health", (c) => {
   });
 });
 
-/*
-受け取ったら入力チェックして、オウム返しした後データベースに保存
-curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData -H "Content-Type: application/json" -d "{\"sensor_id\": \"esp32_ryoHasegawa_99\", \"location\": \"sapporo\", \"ble_device_count\": 999}"
-{"status":"success","message":"Data received successfully","received_at":"2026-07-13T08:58:29.018Z","data":{"sensor_id":"esp32_ryoHasegawa_99","location":"sapporo","ble_device_count":999}}
-*/
-export const receiveSensorData = onRequest(async (req, res) => {
-  //CORS対策(ローカルや別ドメインからのアクセス許可)
-  res.set('Access-Control-Allow-Origin', '*');
-  if (req.method === "OPTIONS") {
-    res.set('Access-Control-Allow-Methods', 'POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-    res.status(204).send('');
-    return;
-  }
+//corsの処理
+app.use("*", cors({
+  origin: "*",
+  allowMethods: ["POST", "GET", "OPTIONS"],
+  allowHeaders: ["Content-Type", "x-api-key"],
+}));
 
-  //POSTメソッド以外はエラーを返す
-  if (req.method !== "POST") {
-    res.status(405).send("Method Not Allowed");
-    return;
-  }
-
-
+app.post("/receiveSensorData", async (c) => {
   //# ヘッダーなしで実行するとエラーになることを確認
   // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"sensor_id\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
   //API key確認
-  const apiKey = req.headers['x-api-key'];
+  const apiKey = c.req.header("x-api-key");
   if(!apiKey || apiKey !== VALID_API_KEY) {
-    res.status(401).json({
+    return c.json({
       status: "error",
       message: "Unauthorized: Invalid or missing API Key",
-    });
-    return;
+    }, 401);
   }
 
-  const parseResult = SensorDataSchema.safeParse(req.body);
+  const parseResult = SensorDataSchema.safeParse(await c.req.json());
   if(!parseResult.success) {
     const errorMessage = parseResult.error.issues[0].message;
-    res.status(400).json({
+    return c.json({
       status: "error",
       message: errorMessage,
-    });
-
-    return;
+    }, 400);
   }
 
 
@@ -121,25 +105,21 @@ export const receiveSensorData = onRequest(async (req, res) => {
   logger.info("Received data from ESP32", sensorData);
 
   //正しく届いたか確認
-  res.status(200).json({
+  return c.json({
     status: "success",
     message: "Data received successfully",
     received_at: receivedAt,
     data: sensorData
-  });
+  }, 200);
 });
 
-//curl -X GET "http://127.0.0.1:5001/fun-now-and-future/us-central1/getCongestion" -H "Content-Type: application/json" -d "{\"location\": \"sapporo\"}"
-//
-export const getCongestion = onRequest (async (req, res) => {
-  const parseResult = LocationQuerySchema.safeParse(req.query);
+app.get("/getCongestion", async (c) => {
+    const parseResult = LocationQuerySchema.safeParse(await c.req.query);
   if(!parseResult.success) {
-    res.status(400).json({
+    return c.json({
       status: "error",
       message: parseResult.error.issues[0].message,
-    });
-
-    return;
+    }, 400);
   }
 
   const {location} = parseResult.data;
@@ -151,35 +131,32 @@ export const getCongestion = onRequest (async (req, res) => {
 		.get();
 
   if(snapshot.empty) {
-    res.status(404).json({
+    return c.json({
       status: "error",
       message: "No data found",
-    });
-    return;
+    }, 404);
   }
 
   const data = snapshot.docs[0].data();
 
   const congestionInfo = calculateCongestionStatus(data.ble_device_count);
 
-	res.status(200).json({
+	return c.json({
     status: "success",
     data: {...data,
       congestion_level: congestionInfo.level,
       congestion_label: congestionInfo.label,
     }
-  });
+  }, 200);
 });
 
-export const getCongestionHistory = onRequest(async (req, res) => {
-  const parseResult = HistoryQuerySchema.safeParse(req.query);
+app.get("/getCongestionHistory", async (c) => {
+  const parseResult = HistoryQuerySchema.safeParse(await c.req.query);
   if(!parseResult.success) {
-    res.status(400).json({
+    return c.json({
       status: "error",
       message: parseResult.error.issues[0].message,
-    });
-
-    return;
+    }, 400);
   }
 
   const { location, limit } = parseResult.data;
@@ -191,11 +168,10 @@ export const getCongestionHistory = onRequest(async (req, res) => {
     .get();
 
   if (snapshot.empty) {
-    res.status(404).json({
+    return c.json({
       status: "error",
       message: "No history data found",
-    });
-    return;
+    }, 404);
   }
 
   const history = snapshot.docs.map(doc => {
@@ -208,16 +184,21 @@ export const getCongestionHistory = onRequest(async (req, res) => {
     };
   });
 
-  res.status(200).json({
+  return c.json({
     status: "success",
     count: history.length,
     data: history,
+  }, 200);
+});
+
+
+app.get("/getAnnouncements", (c) => {
+  return c.json({
+
   });
 });
 
-export const getAnnouncements = onRequest(async (req, res) => {
-
-});
+export default app;
 
 function calculateCongestionStatus(count: number):  {level: string; label: string} {
   if(count >= 50) {
