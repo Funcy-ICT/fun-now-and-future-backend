@@ -41,6 +41,8 @@ export const health = onRequest((req, res) => {
   });
 });
 
+const VALID_API_KEY = "funcy_esp32_secret_key_2026";
+
 /*
 受け取ったら入力チェックして、オウム返しした後データベースに保存
 curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData -H "Content-Type: application/json" -d "{\"sensor_id\": \"esp32_ryoHasegawa_99\", \"location\": \"sapporo\", \"ble_device_count\": 999}"
@@ -51,7 +53,7 @@ export const receiveSensorData = onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === "OPTIONS") {
     res.set('Access-Control-Allow-Methods', 'POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
     res.status(204).send('');
     return;
   }
@@ -59,6 +61,19 @@ export const receiveSensorData = onRequest(async (req, res) => {
   //POSTメソッド以外はエラーを返す
   if (req.method !== "POST") {
     res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+
+  //# ヘッダーなしで実行するとエラーになることを確認
+  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"sensor_id\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
+  //API key確認
+  const apiKey = req.headers['x-api-key'];
+  if(!apiKey || apiKey !== VALID_API_KEY) {
+    res.status(401).json({
+      status: "error",
+      message: "Unauthorized: Invalid or missing API Key",
+    });
     return;
   }
 
