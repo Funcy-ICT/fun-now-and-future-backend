@@ -13,7 +13,10 @@ import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { z } from "zod";
+import {Hono} from "hono";
 
+
+const app = new Hono();
 
 initializeApp();
 const db = getFirestore();
@@ -48,10 +51,11 @@ const HistoryQuerySchema = LocationQuerySchema.extend({
 // this will be the maximum concurrent request count.
 setGlobalOptions({ maxInstances: 10 });
 
-export const health = onRequest((req, res) => {
+
+app.get("/health", (c) => {
   logger.info("health endpoint called");
 
-  res.json({
+  return c.json({
     status: "ok",
     message: "Backend is running",
   });
