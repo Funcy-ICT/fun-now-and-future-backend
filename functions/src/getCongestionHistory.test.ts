@@ -1,14 +1,8 @@
+import { createRequest, createResponse } from "node-mocks-http";
 import { getFirestore } from "firebase-admin/firestore";
-import { getApp, deleteApp } from "firebase-admin/app";
-import app from "./index";
+import { getCongestionHistory } from "./index";
 
-jest.setTimeout(30000);
-
-describe("GET /getCongestionHistory", () => {
-		afterAll(async () => {
-			await deleteApp(getApp());
-		});
-
+describe("getCongestionHistory", () => {
 	test("履歴の取得ができる", async () => {
 		const db = getFirestore();
 
@@ -25,15 +19,21 @@ describe("GET /getCongestionHistory", () => {
 			received_at: "2026-07-24T10:05:00.000Z",
 		});
 
+		const req: any = createRequest({
+			method: "GET",
+			query: {
+				location: "paris",
+			},
+		});
+
+		const res = createResponse();
+
+		await getCongestionHistory(req, res);
+
 		try{
-			const res = await app.request("/getCongestionHistory?location=paris", {
-				method: "GET",
-			});
+			expect(res.statusCode).toBe(200);
 
-			//アサーション
-			expect(res.status).toBe(200);
-
-			const json = await res.json();
+			const json = res._getJSONData();
 			expect(json.status).toBe("success");
 			expect(json.count).toBe(2);
 			expect(json.data[0].sensor_id).toBe("historyTest2");

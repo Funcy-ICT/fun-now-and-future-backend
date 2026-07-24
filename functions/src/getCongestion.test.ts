@@ -1,14 +1,8 @@
+import { createRequest, createResponse } from "node-mocks-http";
 import { getFirestore } from "firebase-admin/firestore";
-import { getApp, deleteApp } from "firebase-admin/app";
-import app from "./index";
+import { getCongestion } from "./index";
 
-jest.setTimeout(30000);
-
-describe("GET /getCongestion", () => {
-	afterAll(async () => {
-		await deleteApp(getApp());
-	});
-
+describe("getCongestion", () => {
 	test("混雑度を取得", async () => {
 		const db = getFirestore();
 
@@ -20,15 +14,22 @@ describe("GET /getCongestion", () => {
 			received_at: new Date().toISOString(),
 		});
 
+		const req: any = createRequest({
+			method: "GET",
+			query: {
+				location: "moscow",
+			},
+		});
+
+		const res = createResponse();
+
+		await getCongestion(req, res);
+
 		try{
-			const res = await app.request("/getCongestion?location=moscow", {
-				method: "GET",
-			});
-
 			//アサーション
-			expect(res.status).toBe(200);
+			expect(res.statusCode).toBe(200);
 
-			const json = await res.json();
+			const json = res._getJSONData();
 			expect(json.status).toBe("success");
 			expect(json.data).toMatchObject({
 				sensor_id: "getCongestionTestId",

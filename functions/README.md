@@ -5,78 +5,35 @@ ESP32 から送信される BLE 端末検知データを処理し、Firestore �
 
 ---
 
-##  技術構成
+## 🛠 技術構成
 
 * **Runtime**: Node.js / TypeScript
-* **Framework**: Firebase Cloud Functions (v2) + Hono
+* **Framework**: Firebase Cloud Functions (v2)
 * **Database**: Firebase Firestore
 * **Validation**: Zod
-* **Testing**: Jest / Hono `app.request`
+* **Testing**: Jest / node-mocks-http
 
 ---
 
-##  主な機能・エンドポイント
-
-> **Base URL**: `まだデプロイしてない`
+## 🚀 主な機能・エンドポイント
 
 ### 1. `POST /receiveSensorData`
-ESP32（センサー端末）から BLE デバイス数データを受信し、Firestore に保存。
-* **認証**: ヘッダー `x-api-key: <API_KEY>`
-* **リクエストボディ**:
-```json
-{
-	"sensor_id": "esp32_cafeteria_01",
-	"location": "cafeteria",
-	"ble_device_count": 12,
-}
-```
----
+ESP32（センサー端末）から BLE デバイス数データを受信し、Firestore に保存します。
+* **認証**: リクエストヘッダーに `x-api-key` が必要です。
+* **バリデーション**: Zod による型チェック・値の範囲チェックを実施。
 
 ### 2. `GET /getCongestion`
 指定したロケーションの**最新の混雑度データ**を取得します。
 * **クエリパラメータ**: `location` (必須)
-* **レスポンス例(200 OK)**
-```json
-{
-  "status": "success",
-  "data": {
-    "location": "cafeteria",
-    "congestion_level": "low", // "low" | "medium" | "high"
-    "label": "空いています",
-    "wait_time": "待ち時間0〜3分",
-    "ble_device_count": 5,
-    "updated_at": "2026-07-27T07:30:00.000Z",
-  }
-}
-```
+* **自動計算**: 人数に応じた混雑度レベル（`low` / `medium` / `high`）とラベル（`空いている` / `やや混雑` / `混雑`）を付与して返却。
 
 ### 3. `GET /getCongestionHistory`
-指定したロケーションの**混雑度の履歴データ**を取得。
+指定したロケーションの**混雑度の履歴データ**を取得します。
 * **クエリパラメータ**: `location` (必須), `limit` (任意 / デフォルト10件, 最大50件)
-**レスポンス例(200 OK)**
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "location": "cafeteria",
-      "ble_device_count": 15,
-      "received_at": "2026-07-27T07:30:00.000Z"
-    }
-  ]
-}
-```
----
-
-## ロケーションIDの一覧(`location`)
-| location (ID) | 設置場所 | 対応するサイネージ表示 | 備考 |
-| :--- | :--- | :--- | :--- |
-| `cafeteria` | 学内食堂 | 左側「食堂の混雑状況」 | 食堂用の ESP32 から送信 |
-| `bus_stop` | バス停留所 | 右下「バス停の混雑状況」 | バス停用の ESP32 から送信 |
 
 ---
 
-##  ローカル開発・テスト手順
+## 🧪 ローカル開発・テスト手順
 
 ### 1. 依存パッケージのインストール
 ```bash
@@ -93,4 +50,3 @@ npm test
 ```bash
 npm run serve
 ```
-
