@@ -12,10 +12,20 @@ import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { z } from "zod";
 
 
 initializeApp();
 const db = getFirestore();
+const VALID_API_KEY = "funcy_esp32_secret_key_2026";
+
+const SensorDataSchema = z.object({
+  sensor_id: z.string().min(1, "sensor_id is required"),
+  location: z.string().min(1, "location is required"),
+  ble_device_count: z.number().min(0, "ble_device_count must be 0 or greater"),
+});
+
+
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -40,8 +50,6 @@ export const health = onRequest((req, res) => {
     message: "Backend is running",
   });
 });
-
-const VALID_API_KEY = "funcy_esp32_secret_key_2026";
 
 /*
 受け取ったら入力チェックして、オウム返しした後データベースに保存
@@ -77,71 +85,23 @@ export const receiveSensorData = onRequest(async (req, res) => {
     return;
   }
 
+  const parseResult = SensorDataSchema.safeParse(req.body);
+  if(!parseResult.success) {
+    const errorMessage = parseResult.error.issues[0].message;
+    res.status(400).json({
+      status: "error",
+      message: errorMessage,
+    });
+
+    return;
+  }
+
+
   //ESP32からのデータを取得
-  const sensorData = req.body;
-
-  //入力チェック
-  //データに対して、型チェックと値があるか(undefined、null、空文字ではない)のチェックをする
-  //存在、型、値の順番でチェックする
-  if(!sensorData.sensor_id) {
-    res.status(400).json({
-      status: "error",
-      message: "sensor_id is required",
-    });
-    return;
-  }
-
-  if(typeof sensorData.sensor_id !== "string") {
-    res.status(400).json({
-      status: "error",
-      message: "sensor_id must be a string",
-    });
-    return;
-  }
-
-  if(sensorData.ble_device_count === undefined) {
-    res.status(400).json({
-      status: "error",
-      message: "ble_device_count is required",
-    });
-    return;
-  }
-
-  if(typeof sensorData.ble_device_count !== "number") {
-    res.status(400).json({
-      status: "error",
-      message: "ble_device_count must be a number",
-    });
-    return;
-  }
-
-  if(sensorData.ble_device_count < 0) {
-    res.status(400).json({
-      status: "error",
-      message: "ble_device_count must not be negative",
-    });
-    return;
-  }
-
-  if(!sensorData.location) {
-    res.status(400).json({
-      status: "error",
-      message: "location is required",
-    });
-    return;
-  }
-
-  if(typeof sensorData.location !== "string") {
-    res.status(400).json({
-      status: "error",
-      message: "location must be a string",
-    });
-    return;
-  }
-
-  const receivedAt = new Date().toISOString();
+  const sensorData = parseResult.data;
 
   //(default)データベースに保存
+  const receivedAt = new Date().toISOString();
   await db.collection("sensorData").add({
     ...sensorData,
     received_at: receivedAt,
@@ -158,7 +118,6 @@ export const receiveSensorData = onRequest(async (req, res) => {
     data: sensorData
   });
 });
-
 
 //curl -X GET "http://127.0.0.1:5001/fun-now-and-future/us-central1/getCongestion" -H "Content-Type: application/json" -d "{\"location\": \"sapporo\"}"
 //
@@ -206,6 +165,59 @@ export const getCongestion = onRequest (async (req, res) => {
       congestion_label: congestionInfo.label,
     }
   });
+});
+
+export const getCongestionHistory = onRequest(async (req, res) => {
+  const location = req.query.location;
+  const limitQuery = req.query.limit;
+
+  if (typeof location !== "string" || location === "") {
+    res.status(400).json({
+      status: "error",
+      message: "location query parameter is required",
+    });
+    return;
+  }
+
+  //デフォルト
+  let limit = 100;
+  if (typeof limitQuery === "string" && !isNaN(Number(limitQuery))) {
+    limit = Math.min(Math.max(Number(limitQuery), 1), 50);
+  }
+
+  const snapshot = await db.collection("sensorData")
+    .where("location", "==", location)
+    .orderBy("received_at", "desc")
+    .limit(limit)
+    .get();
+
+  if (snapshot.empty) {
+    res.status(404).json({
+      status: "error",
+      message: "No history data found",
+    });
+    return;
+  }
+
+  const history = snapshot.docs.map(doc => {
+    const data = doc.data();
+    const congestionInfo = calculateCongestionStatus(data.ble_device_count);
+    return {
+      ...data,
+      congestion_level: congestionInfo.level,
+      congestion_label: congestionInfo.label,
+    };
+  });
+
+  res.status(200).json({
+    status: "success",
+    count: history.length,
+    data: history,
+  });
+});
+
+export const getAnnouncements = onRequest(async (req, res) => {
+
 });
 
 function calculateCongestionStatus(count: number):  {level: string; label: string} {
