@@ -10,8 +10,8 @@ describe("receiveSensorData", () => {
 				"Content-Type": "application/json",
 			},
 			body: {
-				sensor_id: "esp32_ryoHasegawa_99",
-				location: "moscow",
+				sensor_id: "receiveSensorDataTestId",
+				location: "london",
 				ble_device_count: 999,
 			},
 		});
@@ -25,8 +25,8 @@ describe("receiveSensorData", () => {
 		const json = res._getJSONData();
 		expect(json.status).toBe("success");
 		expect(json.data).toEqual({
-			sensor_id: "esp32_ryoHasegawa_99",
-			location: "moscow",
+			sensor_id: "receiveSensorDataTestId",
+			location: "london",
 			ble_device_count: 999,
 		});
 	});
