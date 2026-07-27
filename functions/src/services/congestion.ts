@@ -83,7 +83,7 @@ congestionRoute.get("/getCongestionHistory", async (c) => {
     }, 404);
   }
 
-  const history = snapshot.docs.map(doc => {
+  const history = snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const congestionInfo = calculateCongestionStatus(data.ble_device_count);
     return {
