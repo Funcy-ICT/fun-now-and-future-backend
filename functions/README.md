@@ -29,7 +29,7 @@ ESP32（センサー端末）から BLE デバイス数データを受信し、F
 	"location": "cafeteria",
 	"ble_device_count": 12,
 }
-
+```
 ---
 
 ### 2. `GET /getCongestion`
