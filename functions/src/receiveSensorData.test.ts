@@ -2,7 +2,7 @@ import app from "./index";
 
 describe("POST /receiveSensorData", () => {
 	jest.setTimeout(10000);
-	
+
 	test("POSTリクエストを受け取れる", async () => {
 		const res = await app.request("/receiveSensorData", {
 			method: "POST",
@@ -14,6 +14,7 @@ describe("POST /receiveSensorData", () => {
 				sensor_id: "receiveSensorDataTestId",
 				location: "london",
 				ble_device_count: 999,
+				mac_address: "AA:BB:CC:11:22:33",
 			}),
 		});
 
@@ -25,6 +26,7 @@ describe("POST /receiveSensorData", () => {
 			sensor_id: "receiveSensorDataTestId",
 			location: "london",
 			ble_device_count: 999,
+			mac_address: "AA:BB:CC:11:22:33",
 		});
 	});
 
@@ -38,6 +40,7 @@ describe("POST /receiveSensorData", () => {
 			sensor_id: "receiveSensorDataTestId",
 			location: "london",
 			ble_device_count: 999,
+			mac_address: "AA:BB:CC:11:22:33",
         }),
     });
 
@@ -60,6 +63,7 @@ describe("POST /receiveSensorData", () => {
 				sensor_id: "receiveSensorDataTestId",
 				location: "london",
 				ble_device_count: 999,
+				mac_address: "AA:BB:CC:11:22:33",
 			}),
 		});
 
