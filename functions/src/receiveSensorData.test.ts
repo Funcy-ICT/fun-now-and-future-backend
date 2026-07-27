@@ -1,8 +1,8 @@
 import app from "./index";
 
-describe("POST /receiveSensorData", () => {
-	jest.setTimeout(10000);
+jest.setTimeout(10000);
 
+describe("POST /receiveSensorData", () => {
 	test("POSTリクエストを受け取れる", async () => {
 		const res = await app.request("/receiveSensorData", {
 			method: "POST",
