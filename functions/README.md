@@ -17,10 +17,18 @@ ESP32 から送信される BLE 端末検知データを処理し、Firestore �
 
 ## 🚀 主な機能・エンドポイント
 
+**Base URL**: 'まだデプロイしてない'
+
 ### 1. `POST /receiveSensorData`
 ESP32（センサー端末）から BLE デバイス数データを受信し、Firestore に保存します。
-* **認証**: リクエストヘッダーに `x-api-key` が必要です。
-* **バリデーション**: Zod による型チェック・値の範囲チェックを実施。
+* **認証**: ヘッダー `x-api-key: <API_KEY>`
+* **リクエストボディ**:
+'''json
+{
+	"sensor_id"
+	"location"
+	"ble_device_count"
+} 
 
 ### 2. `GET /getCongestion`
 指定したロケーションの**最新の混雑度データ**を取得します。
@@ -50,3 +58,5 @@ npm test
 ```bash
 npm run serve
 ```
+
+##

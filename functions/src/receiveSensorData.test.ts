@@ -14,7 +14,6 @@ describe("POST /receiveSensorData", () => {
 				sensor_id: "receiveSensorDataTestId",
 				location: "london",
 				ble_device_count: 999,
-				mac_address: "AA:BB:CC:11:22:33",
 			}),
 		});
 
@@ -26,7 +25,6 @@ describe("POST /receiveSensorData", () => {
 			sensor_id: "receiveSensorDataTestId",
 			location: "london",
 			ble_device_count: 999,
-			mac_address: "AA:BB:CC:11:22:33",
 		});
 	});
 
@@ -40,7 +38,6 @@ describe("POST /receiveSensorData", () => {
 			sensor_id: "receiveSensorDataTestId",
 			location: "london",
 			ble_device_count: 999,
-			mac_address: "AA:BB:CC:11:22:33",
         }),
     });
 
@@ -63,7 +60,6 @@ describe("POST /receiveSensorData", () => {
 				sensor_id: "receiveSensorDataTestId",
 				location: "london",
 				ble_device_count: 999,
-				mac_address: "AA:BB:CC:11:22:33",
 			}),
 		});
 
@@ -72,23 +68,5 @@ describe("POST /receiveSensorData", () => {
 
 		const json = await res.json();
 		expect(json.status).toBe("error");
-	});
-
-	test("macアドレスのフォーマットが不正な場合400を返す", async () => {
-		const res = await app.request("/receiveSensorData", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": "funcy_esp32_secret_key_2026",
-			},
-			body: JSON.stringify({
-				sensor_id: "receiveSensorDataTestId",
-				location: "london",
-				ble_device_count: 999,
-				mac_address: "INVALID_MAC_ADDRESS",
-			}),
-		});
-
-		expect(res.status).toBe(400);
 	});
 });

@@ -5,14 +5,10 @@ import { db } from "../lib/firebase";
 
 const VALID_API_KEY = "funcy_esp32_secret_key_2026";
 
-//MACアドレスの正規表現
-const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-
 const SensorDataSchema = z.object({
   sensor_id: z.string().min(1, "sensor_id is required"),
   location: z.string().min(1, "location is required"),
   ble_device_count: z.number().min(0, "ble_device_count must be 0 or greater"),
-  mac_address: z.string().regex(macRegex).optional(),
 });
 
 export const sensorRoute = new Hono();
