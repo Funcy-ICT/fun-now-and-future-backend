@@ -1,3 +1,1 @@
-import { Hono } from "hono";
-import { z } from "zod";
-
+//管理ページのためのルート

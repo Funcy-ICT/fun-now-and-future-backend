@@ -22,7 +22,7 @@ export async function sensordatetodb(parseResult: any) {
 }
 
 
-export async function getLatestSensorData() {
+export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
     .orderBy("received_at", "desc")
