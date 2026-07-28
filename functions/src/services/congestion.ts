@@ -36,7 +36,7 @@ congestionRoute.get("/getCongestion", async (c) => {
   // 直近の混雑状況を取得する関数はリポジトリ層に移動しました。
   // functions/src/repositories/firestore.tsのgetLatestSensorData関数に書いてあります。
   //ここで、リポジトリ層のgetLatestSensorData関数を呼び出して、最新のセンサーデータを取得します。
-  const snapshot = await getLatestSensorData();
+  const snapshot = await getLatestSensorData(parseResult.data.location);
   
   if(snapshot.empty) {
    return c.json({

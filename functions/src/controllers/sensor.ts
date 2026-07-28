@@ -27,7 +27,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   // functions/middleware/sensor_aurh.tsに書いてあります。
   // APIキーの検証のためのsensorAuthMiddleware関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
-  if(authResult === 0) {
+  if(authResult === -1) {
     return c.json({
       status: "error",
       message: "Unauthorized: Invalid or missing API Key",
@@ -42,7 +42,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
       message: errorMessage,
     }, 400);
   }
-  //データーベース部を別ファイルに分割しました。
+  //データーベース部をリポジトリ層に分割しました。
   //書いてあった処理は/functions/src/repositories/firestore.tsのsensordatetodb関数に書いてあります。
   //データベースに保存する処理を呼び出す
   const result = await sensordatetodb(parseResult);

@@ -1,8 +1,5 @@
 import { db } from "../lib/firebase";
 import * as logger from "firebase-functions/logger";
-import { Hono } from "hono";
-import { z } from "zod";
-import { calculateCongestionStatus } from "../services/congestion";
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
