@@ -1,6 +1,5 @@
-import { createRequest, createResponse } from "node-mocks-http";
 import { getFirestore } from "firebase-admin/firestore";
-import { getCongestionHistory } from "./index";
+import { app } from "./app";
 
 describe("getCongestionHistory", () => {
 	test("履歴の取得ができる", async () => {
@@ -19,21 +18,12 @@ describe("getCongestionHistory", () => {
 			received_at: "2026-07-24T10:05:00.000Z",
 		});
 
-		const req: any = createRequest({
-			method: "GET",
-			query: {
-				location: "paris",
-			},
-		});
+		try {
+			const res = await app.request("/getCongestionHistory?location=paris");
 
-		const res = createResponse();
+			expect(res.status).toBe(200);
 
-		await getCongestionHistory(req, res);
-
-		try{
-			expect(res.statusCode).toBe(200);
-
-			const json = res._getJSONData();
+			const json = await res.json();
 			expect(json.status).toBe("success");
 			expect(json.count).toBe(2);
 			expect(json.data[0].sensor_id).toBe("historyTest2");

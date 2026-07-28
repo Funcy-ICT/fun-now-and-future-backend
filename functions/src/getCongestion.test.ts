@@ -1,6 +1,5 @@
-import { createRequest, createResponse } from "node-mocks-http";
 import { getFirestore } from "firebase-admin/firestore";
-import { getCongestion } from "./index";
+import { app } from "./app";
 
 describe("getCongestion", () => {
 	test("混雑度を取得", async () => {
@@ -14,22 +13,13 @@ describe("getCongestion", () => {
 			received_at: new Date().toISOString(),
 		});
 
-		const req: any = createRequest({
-			method: "GET",
-			query: {
-				location: "moscow",
-			},
-		});
+		try {
+			const res = await app.request("/getCongestion?location=moscow");
 
-		const res = createResponse();
-
-		await getCongestion(req, res);
-
-		try{
 			//アサーション
-			expect(res.statusCode).toBe(200);
+			expect(res.status).toBe(200);
 
-			const json = res._getJSONData();
+			const json = await res.json();
 			expect(json.status).toBe("success");
 			expect(json.data).toMatchObject({
 				sensor_id: "getCongestionTestId",

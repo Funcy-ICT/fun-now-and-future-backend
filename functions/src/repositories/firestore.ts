@@ -1,5 +1,4 @@
 import { db } from "../lib/firebase";
-import * as logger from "firebase-functions/logger";
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
@@ -14,7 +13,7 @@ export async function sensordatetodb(parseResult: any) {
    });
 
 //firebaseのログ
-   logger.info("Received data from ESP32", sensorData);
+   console.info("Received data from ESP32", sensorData);
    return {sensorData, receivedAt};
 }
 
