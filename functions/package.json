@@ -7,7 +7,7 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "node lib/index.js",
     "deploy": "firebase deploy --only functions",
-    "test": "set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080&& set GCLOUD_PROJECT=fun-now-and-future&& jest",
+    "test": "firebase emulators:exec --only firestore --project fun-now-and-future \"jest\"",
     "logs": "firebase functions:log"
   },
   "engines": {
