@@ -20,6 +20,7 @@ src/
 ├── app.ts                 # Honoアプリの組み立て（ルーティングの登録）
 ├── controllers/           # HTTPの受け口（リクエスト検証・レスポンス整形）
 │   └── sensor.ts
+│   └── signage.ts
 ├── services/              # ビジネスロジック（混雑度判定など）
 │   └── congestion.ts
 ├── repositories/          # Firestoreへの読み書きのみ
