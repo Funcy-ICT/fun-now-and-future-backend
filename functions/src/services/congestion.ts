@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { z } from "zod";
-// import { db } from "../lib/firebase";";
 import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
 
@@ -25,7 +24,9 @@ export function calculateCongestionStatus(count: number):  {level: string; label
 
 export const congestionRoute = new Hono();
 
-congestionRoute.get("/getCongestion", async (c) => {
+
+//関数化してコントローラー層から呼び出す形に変更
+export const congestion = async (c: any) => {
     const parseResult = LocationQuerySchema.safeParse(await c.req.query());
   if(!parseResult.success) {
     return c.json({
@@ -58,9 +59,9 @@ congestionRoute.get("/getCongestion", async (c) => {
     }
   }, 200); 
 }
-);
 
-congestionRoute.get("/getCongestionHistory", async (c) => {
+
+export const congestion_history = async (c: any) => {
   const parseResult = HistoryQuerySchema.safeParse(await c.req.query());
   if(!parseResult.success) {
     return c.json({
@@ -69,7 +70,6 @@ congestionRoute.get("/getCongestionHistory", async (c) => {
     }, 400);
   }
 
-//   const { location, limit } = parseResult.data;
 
     // 直近の混雑状況を取得する関数はリポジトリ層に移動しました。 
     // functions/src/repositories/firestore.tsのgetSensorDataHistory関数に書いてあります。
@@ -100,4 +100,3 @@ congestionRoute.get("/getCongestionHistory", async (c) => {
     data: history,
   }, 200);
 }
-);
