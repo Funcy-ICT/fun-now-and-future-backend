@@ -52,7 +52,10 @@ const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> =
   .where("observed_at", ">=", start)//dateで渡しても、SDKによりFirestoreのtimestamp型に変換されるので問題ない
   .where("observed_at", "<", end)
   .get();
-  return snapshot.docs.map(toScanRecord);
+  return snapshot.docs.map((doc) => ({
+    ...toScanRecord(doc),
+    ref: doc.ref,// deleteScanRecord関数で削除するために、ドキュメントの参照を返す
+  }));
 }
 
 const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord => {
@@ -64,3 +67,11 @@ const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord 
     location: data.location,
   };
 }
+
+// すでに読み出したデータを削除する関数, 一度に大量のデータを削除する可能性があるため、バッチ処理を行う
+const deleteScanRecord = async (docRefs: FirebaseFirestore.DocumentReference[]): Promise<void> => {
+  const batch = db.batch();
+  docRefs.forEach((ref) => 
+    batch.delete(ref));
+    await batch.commit();
+};
