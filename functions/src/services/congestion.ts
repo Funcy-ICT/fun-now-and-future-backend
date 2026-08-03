@@ -100,3 +100,9 @@ export const congestion_history = async (c: any) => {
     data: history,
   }, 200);
 }
+
+const calculate_congestion_every_minute = () => {
+  // Cloud Schedulerを使用して、定期的にこの関数を呼び出す
+  // 5分ごとに呼び出すことを想定する
+  
+}
