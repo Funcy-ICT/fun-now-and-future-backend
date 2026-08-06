@@ -1,0 +1,21 @@
+{
+  "name": "fun-now-and-future",
+  "build": {
+    "dockerfile": "../functions/dockerfile",
+	"context": "../functions"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {
+		"version": "latest"
+	}
+  },
+  "forwardPorts": [8080],
+  "containerEnv": {
+    "APP_ENV": "development"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+}
