@@ -4,6 +4,7 @@
     "dockerfile": "../functions/dockerfile",
 	"context": "../functions"
   },
+  "onCreateCommand": "npm install -g firebase-tools",
   "forwardPorts": [8080],
   "containerEnv": {
     "APP_ENV": "development"
