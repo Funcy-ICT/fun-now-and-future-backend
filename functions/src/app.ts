@@ -12,8 +12,3 @@ app.onError(errorHandler);
 app.get("/health", (c) => c.json({ status: "ok", message: "Backend is running" }));
 app.route("/", sensorRoute);
 app.route("/", congestionRoute);
-
-//テスト用エンドポイント
-app.get("/test-error", (c) => {
-	throw new Error("意図的なエラー");
-});
