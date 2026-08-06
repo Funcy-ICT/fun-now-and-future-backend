@@ -1,8 +1,9 @@
-import { serve } from "@hono/node-server";
 import { app } from "./app";
+import { onRequest } from "firebase-functions/v2/https";
 
-//サーバー起動
-const port = Number(process.env.PORT) || 8080;
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Server is running on port ${info.port}`);
+//firebaseFunctions用のエクスポート
+export const api = onRequest((req, res) => {
+  app.fetch(req as any, res as any);
 });
+//テストなどのためのエクスポート
+export default app;
