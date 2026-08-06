@@ -1,7 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
+import app from "./app";
+import { getRequestListener } from "@hono/node-server";
 
-//firebaseFunctions用のエクスポート
-export const api = onRequest((req, res) => {
-	const { app } = require("./app");
-	return app.fetch(req as any, res as any);
+const listener = getRequestListener(app.fetch);
+
+export const api = onRequest((req: any, res: any) => {
+  return listener(req, res);
 });
