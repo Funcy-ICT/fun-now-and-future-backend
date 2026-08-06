@@ -1,4 +1,29 @@
-import { db } from "../lib/firebase";
+let _db: any = null;
+
+export const getDb = () => {
+	if(!_db) {
+		const { initializeApp, getApps } = require("firebase-admin/app");
+		const { getFirestore } = require("firebase-admin/firestore");
+
+		if(getApps().length === 0){
+			initializeApp({
+				projectId: "fun-now-and-future",
+			});
+		}
+
+		_db = getFirestore();
+	}
+	return _db;
+};
+
+//Proxyでラップ
+export const db = new Proxy({} as any, {
+	get(_target, prop) {
+		const firestore = getDb();
+		const value = firestore[prop];
+		return typeof value === "function" ? value.bind(firestore) : value;
+	},
+});
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
