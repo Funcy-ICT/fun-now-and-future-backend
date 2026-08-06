@@ -4,6 +4,39 @@
 ESP32 から送信される BLE 検知データを処理し、Firestore への保存およびサイネージ・アプリ向けの混雑度データ提供を行います。
 
 
+# お約束
+
+## プログラムを書く上で
+基本的に下記のサイトに書いてることに従います。  
+https://golang.org/doc/effective_go.html
+
+## Github
+#### Branch命名規則
+- master
+    - プロダクトとしてリリースするためのブランチ. 基本触らない
+- develop(default)
+    - 開発ブランチ． コードが安定し,リリース準備ができたら master へマージする. リリース前はこのブランチが最新バージョンとなる.
+- feature
+    - 機能の追加. develop から分岐し, develop にマージする.
+    - feature-{任意で詳細}
+- fix
+    - 現在のプロダクトのバージョンに対する変更・修正用.
+    - fix-{任意で詳細}
+#### コミットメッセージ
+- add:新機能
+- fix:バグ修正
+- wip:作業中（WIP：Work In Progress）
+- clean:整理（削除も含む）
+
+#### issue,Pull Requestのラベル(主に使って欲しいものを明記)
+- bug バグの内容、解決したいことについて記述
+- documentation ドキュメントの更新
+- enhancement 新機能の開発
+- help wanted 助けて欲しいこと(基本わからないことがあったらこれ書いて)
+- question 質問、議論(わからないことではなく「これであっているのか不安だな」ということについて書いてください)
+
+
+
 ## 技術構成
 
 * Runtime - Node.js 24 / TypeScript
