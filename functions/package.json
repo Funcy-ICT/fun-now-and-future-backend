@@ -3,8 +3,7 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=lib/index.js",
     "build:watch": "tsc --watch",
-	"dev": "npm run build && npx firebase emulators:start --only functions,firestore",
-    "serve": "npm run build && firebase emulators:start --only functions,firestore",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore,hosting",
     "shell": "npm run build && firebase functions:shell",
     "start": "node lib/index.js",
     "deploy": "firebase deploy --only functions",
