@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sensorRoute } from "./controllers/sensor";
-import { congestionRoute } from "./services/congestion";
+import { congestionRoute } from "./controllers/congestion";
 
 //ルートを一つにまとめる
 export const app = new Hono();
