@@ -1,0 +1,18 @@
+{
+  "name": "Funcy Backend Dev",
+  "build": {
+    "dockerfile": "../functions/dockerfile",
+    "context": "../functions"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "forwardPorts": [8080, 4000, 5001, 8085],
+  "remoteUser": "node"
+}
