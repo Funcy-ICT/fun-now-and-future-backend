@@ -3,7 +3,7 @@
     {
       "source": "functions",
       "codebase": "default",
-      "disallowLegacyRuntimeConfig": true,
+	  "legacyFunctionsManifest": "true",
       "ignore": [
         "node_modules",
         ".git",

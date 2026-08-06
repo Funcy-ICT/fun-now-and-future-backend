@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=lib/index.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions,firestore",
     "shell": "npm run build && firebase functions:shell",
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "esbuild": "^0.28.1",
     "firebase-functions-test": "^3.5.0",
     "jest": "^30.4.2",
     "node-mocks-http": "^1.18.0",
