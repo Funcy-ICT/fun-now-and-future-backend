@@ -63,4 +63,3 @@ sensorRoute.post("/receiveSensorData", async (c) => {
      data: sensorData
    }, 200);
 });
-

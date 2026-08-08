@@ -1,14 +1,31 @@
 import { db } from "../lib/firebase";
+import { z } from "zod";
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
+
+const panding_scans_schema = z.object({
+  mac: z.string().min(1, "mac is required"),
+  rssi: z.number().min(1, "rssi is required"),
+  rawData: z.string().min(1, "rawData is required"),
+})
+
+const panding_scans_data_schema = z.object({
+  nodeId: z.string().min(1, "nodeId is required"),
+  location: z.string().min(1, "location is required"),
+  devices: z.array(panding_scans_schema).min(1, "devices must be a non-empty array"),
+  received_at: z.string().min(1, "received_at is required"),
+});
+
+type PandingScansData = z.infer<typeof panding_scans_data_schema>;
+
 export async function sensordatetodb(parseResult: any) {
       //ESP32からのデータを取得
   const sensorData = parseResult.data;
    //(default)データベースに保存
    const receivedAt = new Date().toISOString();
-   await db.collection("sensorData").add({
+   await db.collection("pending_scans").add({
  	...sensorData,
      received_at: receivedAt,
    });
@@ -75,3 +92,19 @@ const deleteScanRecord = async (docRefs: FirebaseFirestore.DocumentReference[]):
     batch.delete(ref));
     await batch.commit();
 };
+
+const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
+  const result: PandingScansData[] = [];
+  const snapshot = await db.collection("pending_scans").get();
+
+  for (const doc of snapshot.docs) {
+    const docId = doc.id;
+    const parsed = panding_scans_data_schema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+}
