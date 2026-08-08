@@ -85,14 +85,6 @@ const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord 
   };
 }
 
-// すでに読み出したデータを削除する関数, 一度に大量のデータを削除する可能性があるため、バッチ処理を行う
-const deleteScanRecord = async (docRefs: FirebaseFirestore.DocumentReference[]): Promise<void> => {
-  const batch = db.batch();
-  docRefs.forEach((ref) => 
-    batch.delete(ref));
-    await batch.commit();
-};
-
 const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
   const result: PandingScansData[] = [];
   const snapshot = await db.collection("pending_scans").get();
@@ -107,4 +99,26 @@ const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
     result.push(parsed.data);
   }
   return result;
+}
+
+const delete_pending_scans = async (): Promise<void> => {
+  const collectionRef = db.collection("pending_scans");
+  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
+  let totalDeleted = 0;
+  
+  while (true) {
+    const snapshot = await collectionRef.limit(batchSize).get();
+    if (snapshot.empty) {
+      break;
+    }
+
+    const batch = db.batch();
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+    totalDeleted += snapshot.size;
+  }
+
+  console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
