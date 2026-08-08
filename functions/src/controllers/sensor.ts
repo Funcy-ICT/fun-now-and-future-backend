@@ -3,22 +3,28 @@ import { z } from "zod";
 import {sensordatetodb} from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 
-//このデータはESP32から検出するたびに送られてくる
+
+//ESP32から等間隔で送信されるBLEデータを受信するためのエンドポイントを定義する
+const devicesSchema = z.object({
+  mac: z.string().min(1, "mac is required"),
+  rssi: z.number().min(1, "rssi is required"),
+  rawData: z.string().min(1, "rawData is required"),
+})
+
 const SensorDataSchema = z.object({
-  sensor_id: z.string().min(1, "sensor_id is required"),
+  nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  // ble_device_count: z.number().min(0, "ble_device_count must be 0 or greater"),
-  ble_advertising_raw_data: z.array(z.string().min(1, "ble_advertising_raw_data must be a non-empty array of strings")),//esp32からのbleアドバタイジングの生データを受け取る
-  timestamp: z.string().min(1, "timestamp is required"),//esp32からのデータ送信時のタイムスタンプを受け取る
-  ble_mac_addresses: z.array(z.string().min(1, "ble_mac_addresses must be a non-empty array of strings")),//esp32からの検出されたBLEデバイスのMACアドレスの配列を受け取る
+  devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
 });
+
+
 
 export const sensorRoute = new Hono();
 
 
 sensorRoute.post("/receiveSensorData", async (c) => {
   //# ヘッダーなしで実行するとエラーになることを確認
-  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"sensor_id\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
+  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"nodeId\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
   //API key確認
 
 
@@ -56,3 +62,4 @@ sensorRoute.post("/receiveSensorData", async (c) => {
      data: sensorData
    }, 200);
 });
+
