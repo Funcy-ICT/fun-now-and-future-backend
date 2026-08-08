@@ -17,6 +17,7 @@ const SensorDataSchema = z.object({
   devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
 });
 
+type SensorData = z.infer<typeof SensorDataSchema>;
 
 
 export const sensorRoute = new Hono();
