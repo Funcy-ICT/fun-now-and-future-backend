@@ -153,3 +153,9 @@ const saving_max_devices = async (location: string, weekday: number, maxDevice: 
     result.data
   );
 };
+
+const NodeStatusSchema = z.object({
+  nodeId: z.string().min(1, "nodeId is required"),
+  location: z.string().min(1, "location is required"),
+  windowStart: z.string().min(1, "windowStart is required"),
+});
