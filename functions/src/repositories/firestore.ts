@@ -158,4 +158,28 @@ const NodeStatusSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
   windowStart: z.string().min(1, "windowStart is required"),
+  postCount: z.number().min(0, "postCount must be at least 0"),
+  totalMaxCount: z.number().min(1, "totalMaxCount must be at least 1"),
 });
+
+type NodeStatusData = z.infer<typeof NodeStatusSchema>;
+
+//自動採番を行う関数
+
+const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMaxCount: number): Promise<void> => {
+  const result = NodeStatusSchema.safeParse({
+    nodeId,
+    location,
+    windowStart,
+    postCount,
+    totalMaxCount,
+  });
+
+  if (!result.success) {
+    console.error("Validation failed:", result.error.issues);
+    throw new Error("Invalid data for saving node health status");
+  }
+
+  await db
+  .collection("node_health_status")
+  .doc(`${result.data.nodeId}_${result.data.windowStart}`)
