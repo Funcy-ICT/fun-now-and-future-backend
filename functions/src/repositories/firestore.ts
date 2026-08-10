@@ -193,11 +193,10 @@ const saving_node_health_status = async (nodeId: string, location: string, windo
   const result = NodeStatusSchema.safeParse({
     nodeId,
     location,
-    windowStart,
+    windowStart,//これはESP32から送られる集計窓の開始日時(絶対時刻グリッドの00分, 05分, 10分…)を保存する
     postCount,
     totalMaxCount,
   });
-
   if (!result.success) {
     console.error("Validation failed:", result.error.issues);
     throw new Error("Invalid data for saving node health status");
@@ -205,4 +204,6 @@ const saving_node_health_status = async (nodeId: string, location: string, windo
 
   await db
   .collection("node_health_status")
-  .doc(`${result.data.nodeId}_${result.data.windowStart}`)
+  .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
+  .set(result.data);
+};
