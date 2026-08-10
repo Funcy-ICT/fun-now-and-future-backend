@@ -154,6 +154,30 @@ const saving_max_devices = async (location: string, weekday: number, maxDevice: 
   );
 };
 
+
+// 自動採番を行うための関数
+async function getNextSequenceNumber(
+  counterName: string
+): Promise<number> {
+  const counterRef = db.collection("counters").doc(counterName);
+
+  const newNumber = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(counterRef);
+
+    if (!snap.exists) {
+      tx.set(counterRef, { current: 1 });
+      return 1;
+    }
+
+    const current = snap.data()!.current as number;
+    const next = current + 1;
+    tx.update(counterRef, { current: next });
+    return next;
+  });
+
+  return newNumber;
+}
+
 const NodeStatusSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
@@ -164,7 +188,6 @@ const NodeStatusSchema = z.object({
 
 type NodeStatusData = z.infer<typeof NodeStatusSchema>;
 
-//自動採番を行う関数
 
 const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMaxCount: number): Promise<void> => {
   const result = NodeStatusSchema.safeParse({
