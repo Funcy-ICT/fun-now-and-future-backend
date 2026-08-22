@@ -21,18 +21,18 @@ const panding_scans_data_schema = z.object({
 type PandingScansData = z.infer<typeof panding_scans_data_schema>;
 
 export async function sensordatetodb(parseResult: any) {
-      //ESP32からのデータを取得
+  //ESP32からのデータを取得
   const sensorData = parseResult.data;
-   //(default)データベースに保存
-   const receivedAt = new Date().toISOString();
-   await db.collection("pending_scans").add({
- 	...sensorData,
-     received_at: receivedAt,
-   });
+  //(default)データベースに保存
+  const receivedAt = new Date().toISOString();
+  await db.collection("pending_scans").add({
+    ...sensorData,
+    received_at: receivedAt,
+  });
 
-//firebaseのログ
-   console.info("Received data from ESP32", sensorData);
-   return {sensorData, receivedAt};
+  //firebaseのログ
+  console.info("Received data from ESP32", sensorData);
+  return { sensorData, receivedAt };
 }
 
 
@@ -42,7 +42,7 @@ export async function getLatestSensorData(location: string) {
     .orderBy("received_at", "desc")
     .limit(1)
     .get();
-    return snapshot;
+  return snapshot;
 }
 
 export async function getSensorDataHistory(location: string, limit: number) {
@@ -65,10 +65,10 @@ interface ScanRecord {
 // 過去の指定した時間のデータを取得する関数
 const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> => {
   const snapshot = await db
-  .collection("panding_scans")
-  .where("observed_at", ">=", start)//dateで渡しても、SDKによりFirestoreのtimestamp型に変換されるので問題ない
-  .where("observed_at", "<", end)
-  .get();
+    .collection("panding_scans")
+    .where("observed_at", ">=", start)//dateで渡しても、SDKによりFirestoreのtimestamp型に変換されるので問題ない
+    .where("observed_at", "<", end)
+    .get();
   return snapshot.docs.map((doc) => ({
     ...toScanRecord(doc),
     ref: doc.ref,// deleteScanRecord関数で削除するために、ドキュメントの参照を返す
@@ -85,7 +85,7 @@ const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord 
   };
 }
 
-const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
+export const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
   const result: PandingScansData[] = [];
   const snapshot = await db.collection("pending_scans").get();
 
@@ -105,7 +105,7 @@ const delete_pending_scans = async (): Promise<void> => {
   const collectionRef = db.collection("pending_scans");
   const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
   let totalDeleted = 0;
-  
+
   while (true) {
     const snapshot = await collectionRef.limit(batchSize).get();
     if (snapshot.empty) {
@@ -147,11 +147,11 @@ const saving_max_devices = async (location: string, weekday: number, maxDevice: 
   }
 
   await db
-  .collection("max_devices")
-  .doc(`${result.data.location}_${result.data.weekday}`)
-  .set(
-    result.data
-  );
+    .collection("max_devices")
+    .doc(`${result.data.location}_${result.data.weekday}`)
+    .set(
+      result.data
+    );
 };
 
 
@@ -203,7 +203,8 @@ const saving_node_health_status = async (nodeId: string, location: string, windo
   }
 
   await db
-  .collection("node_health_status")
-  .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
-  .set(result.data);
+    .collection("node_health_status")
+    .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
+    .set(result.data);
 };
+

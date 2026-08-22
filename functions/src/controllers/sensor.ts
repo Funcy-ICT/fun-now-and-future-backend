@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import {sensordatetodb} from "../repositories/firestore";
+import { sensordatetodb } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 
 
@@ -34,7 +34,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   // functions/middleware/sensor_aurh.tsに書いてあります。
   // APIキーの検証のためのsensorAuthMiddleware関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
-  if(authResult === 0) {
+  if (authResult === 0) {
     return c.json({
       status: "error",
       message: "Unauthorized: Invalid or missing API Key",
@@ -42,7 +42,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   }
 
   const parseResult = SensorDataSchema.safeParse(await c.req.json());
-  if(!parseResult.success) {
+  if (!parseResult.success) {
     const errorMessage = parseResult.error.issues[0].message;
     return c.json({
       status: "error",
@@ -55,11 +55,11 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   const result = await sensordatetodb(parseResult);
   const sensorData = result.sensorData;
   const receivedAt = result.receivedAt;
-     //正しく届いたか確認
-   return c.json({
-     status: "success",
-     message: "Data received successfully",
-     received_at: receivedAt,
-     data: sensorData
-   }, 200);
+  //正しく届いたか確認
+  return c.json({
+    status: "success",
+    message: "Data received successfully",
+    received_at: receivedAt,
+    data: sensorData
+  }, 200);
 });
