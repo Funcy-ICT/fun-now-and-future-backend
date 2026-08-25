@@ -112,3 +112,12 @@ const filter_rawData_by_BLE_CompanyId = () => {
   const apple_companyId = "0x004C";
 
 }
+
+export const extract_companyId_from_rawData = (rawData: string[]): string | null => {
+  for (const data of rawData) {
+    if (data.startsWith("0x")) {
+      return data;
+    }
+  }
+  return null;
+}

@@ -6,16 +6,17 @@ import { z } from "zod";
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
 
 const panding_scans_schema = z.object({
-  mac: z.string().min(1, "mac is required"),
-  rssi: z.number().min(1, "rssi is required"),
-  rawData: z.string().min(1, "rawData is required"),
+  mac: z.string().array().min(1, "mac is required"),
+  rssi: z.number().array().min(1, "rssi is required"),
+  rawData: z.string().array().min(1, "rawData is required"),
+  companyId: z.string().array().min(1, "companyId is required"),
 })
 
 const panding_scans_data_schema = z.object({
-  nodeId: z.string().min(1, "nodeId is required"),
-  location: z.string().min(1, "location is required"),
+  nodeId: z.string().array().min(1, "nodeId is required"),
+  location: z.string().array().min(1, "location is required"),
   devices: z.array(panding_scans_schema).min(1, "devices must be a non-empty array"),
-  received_at: z.string().min(1, "received_at is required"),
+  received_at: z.string().array().min(1, "received_at is required"),
 });
 
 type PandingScansData = z.infer<typeof panding_scans_data_schema>;

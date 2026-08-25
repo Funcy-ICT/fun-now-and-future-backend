@@ -8,7 +8,9 @@ import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 const devicesSchema = z.object({
   mac: z.string().min(1, "mac is required"),
   rssi: z.number().min(1, "rssi is required"),
-  rawData: z.string().min(1, "rawData is required"),
+  rawData: z.string().min(1, "rawData is required").nullish(),
+  companyId: z.string().min(1, "companyId is required").nullish(),
+  
 })
 
 const SensorDataSchema = z.object({
