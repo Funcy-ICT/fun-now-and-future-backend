@@ -10,7 +10,6 @@ const devicesSchema = z.object({
   rssi: z.number().min(1, "rssi is required"),
   rawData: z.string().min(1, "rawData is required").nullish(),
   companyId: z.string().min(1, "companyId is required").nullish(),
-  
 })
 
 const SensorDataSchema = z.object({
