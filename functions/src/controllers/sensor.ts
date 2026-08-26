@@ -33,6 +33,13 @@ type Device = z.infer<typeof devicesSchema>;
 type ParsedDevice = z.infer<typeof parsedDeviceSchema>;
 type RawDevice = z.infer<typeof rawDeviceSchema>;
 
+const normalizeDevice = (device: Device): ParsedDevice => {
+  switch (device.format) {
+    case "parsed":
+      return device;
+      case "raw":
+        const parsedData = parseRawData(device.rawData);
+}
 const SensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),

@@ -2,9 +2,9 @@ const getByte = (data: string, byte_location: number): string => {// hex文字�
     return data.slice(byte_location * 2, byte_location * 2 + 2);
 };
 
-export const parseRawData = (a: string[]): [string[], string[]] => {
-    const companyIds: string[] = [];
-    const nearbyInfos: string[] = [];
+export const parseRawData = (a: string): [string, string] => {
+    let companyId: string = "";
+    let nearbyInfo: string = "";
 
     for (const data of a) {
         let companyId = "";
@@ -34,8 +34,8 @@ export const parseRawData = (a: string[]): [string[], string[]] => {
             }
             now_location = now_location + 1 + length;
         }
-        companyIds.push(companyId);
-        nearbyInfos.push(nearbyInfo);
+        companyId += companyId;
+        nearbyInfo += nearbyInfo;
     }
-    return [companyIds, nearbyInfos];
+    return [companyId, nearbyInfo];
 };
