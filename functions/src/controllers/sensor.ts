@@ -2,17 +2,36 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { sensordatetodb } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
+import { parseRawData } from "../services/parseRawData";
 
 
 //ESP32から等間隔で送信されるBLEデータを受信するためのエンドポイントを定義する
 // 
-const devicesSchema = z.object({
+
+const deviceBase = {
   mac: z.string().min(1, "mac is required"),
-  rssi: z.number().min(1, "rssi is required"),
-  rawData: z.string().min(1, "rawData is required").nullish(),
-  companyId: z.string().min(1, "companyId is required").nullish(),
-  nearbyInfo: z.string().min(1, "nearbyInfo is required").nullish(),
-})
+  rssi: z.number().min(-100, "rssi must be greater than or equal to -100").max(0, "rssi must be less than or equal to 0"),
+}
+
+const parsedDeviceSchema = z.object({
+  ...deviceBase,
+  format: z.literal("parsed"),
+  companyId: z.string().min(1, "companyId is required"),
+  nearbyInfo: z.string().min(1, "nearbyInfo is required"),
+});
+
+const rawDeviceSchema = z.object({
+  ...deviceBase,
+  format: z.literal("raw"),
+  rawData: z.string().min(1, "rawData is required"),
+});
+
+const devicesSchema = z.discriminatedUnion("format", [parsedDeviceSchema, rawDeviceSchema]);
+
+type SensorData = z.infer<typeof SensorDataSchema>;
+type Device = z.infer<typeof devicesSchema>;
+type ParsedDevice = z.infer<typeof parsedDeviceSchema>;
+type RawDevice = z.infer<typeof rawDeviceSchema>;
 
 const SensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
@@ -20,7 +39,9 @@ const SensorDataSchema = z.object({
   devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
 });
 
-type SensorData = z.infer<typeof SensorDataSchema>;
+
+
+type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
 
 
 export const sensorRoute = new Hono();
