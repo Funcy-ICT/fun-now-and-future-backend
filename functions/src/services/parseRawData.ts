@@ -1,4 +1,4 @@
-const getByte = (data: string, byte_location: number): string => {// 16進数を10進数にし、16進数1バイト分の10進数の位置を返す。
+const getByte = (data: string, byte_location: number): string => {// hex文字列: 2文字 = 1バイト
     return data.slice(byte_location * 2, byte_location * 2 + 2);
 };
 
@@ -9,15 +9,15 @@ export const parseRawData = (a: string[]): [string[], string[]] => {
     for (const data of a) {
         let companyId = "";
         let nearbyInfo = "";
-        let now_location = 0;// now_locationは、現在の位置(バイト)を示す。
+        let now_location = 0;
 
-        while (now_location < data.length / 2) {// now_locationは16進数、data.lengthは10進数であり、長さを合わせるためにdata.lengthを2で割る。
+        while (now_location < data.length / 2) {
             const length = parseInt(getByte(data, now_location), 16);// lengthは、BLEの[[長さ][型][中身]...(繰り返し)]のスキーマうち、[長さ]を抽出する。[長さ]は[型][中身]の合計の長さを示す。
             if (length === 0) break;// [長さ]が0の場合、[型][中身]が存在しないので、その時点でパースを終了する。
             const datatype = getByte(data, now_location + 1);
             if (datatype === "ff") {// [型]が0xffの場合、[中身]はCompany Specific Dataとわかる。
                 companyId = getByte(data, now_location + 3) + getByte(data, now_location + 2);
-                if (companyId === "4c00") {// CompanyIDが"0x004C"の場合、Specific dataがApple continutityとわかる。
+                if (companyId === "004C") {// CompanyIDが"0x004C"の場合、Specific dataがApple continutityとわかる。
                     let apple_location = now_location + 4;// Apple continutityの[中身]の先頭位置を示す。
                     const end = now_location + 1 + length;
                     // Company Specific dataのApple continutityは[[型][長さ][中身]...(繰り返し)]と続いていく。

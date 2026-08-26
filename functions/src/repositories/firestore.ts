@@ -208,4 +208,3 @@ const saving_node_health_status = async (nodeId: string, location: string, windo
     .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
     .set(result.data);
 };
-

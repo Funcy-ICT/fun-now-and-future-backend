@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
 import { take_out_pending_scans } from "../repositories/firestore";
-import { parseRawData } from "./rawdata_parse";
+import { parseRawData } from "./parseRawData";
 
 export const LocationQuerySchema = z.object({
   location: z.string().min(1, "location query parameter is required"),
@@ -122,3 +122,4 @@ export const extract_companyId_from_rawData = (rawData: string[]): string | null
   }
   return null;
 }
+
