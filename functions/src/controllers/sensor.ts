@@ -3,64 +3,20 @@ import { z } from "zod";
 import { sensordatetodb } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { parseRawData } from "../services/parseRawData";
+import { normalizeDevice } from "../services/scan_service";
+import { SensorDataSchema, SensorData } from "../schema/sensor_data";
 
 
 //ESP32から等間隔で送信されるBLEデータを受信するためのエンドポイントを定義する
 // 
 
-const deviceBase = {
-  mac: z.string().min(1, "mac is required"),
-  rssi: z.number().min(-100, "rssi must be greater than or equal to -100").max(0, "rssi must be less than or equal to 0"),
-}
 
-const parsedDeviceSchema = z.object({
-  ...deviceBase,
-  format: z.literal("parsed"),
-  companyId: z.string().min(1, "companyId is required"),
-  nearbyInfo: z.string().min(1, "nearbyInfo is required"),
-});
-
-const rawDeviceSchema = z.object({
-  ...deviceBase,
-  format: z.literal("raw"),
-  rawData: z.string().min(1, "rawData is required"),
-});
-
-const devicesSchema = z.discriminatedUnion("format", [parsedDeviceSchema, rawDeviceSchema]);
-
-type SensorData = z.infer<typeof SensorDataSchema>;
-type Device = z.infer<typeof devicesSchema>;
-type ParsedDevice = z.infer<typeof parsedDeviceSchema>;
-type RawDevice = z.infer<typeof rawDeviceSchema>;
-
-const normalizeDevice = (device: Device): ParsedDevice => {
-  switch (device.format) {
-    case "parsed":
-      return device;
-    case "raw":
-      const [companyId, nearbyInfo] = parseRawData(device.rawData);
-      return {
-        mac: device.mac,
-        rssi: device.rssi,
-        format: "parsed",
-        companyId,
-        nearbyInfo,
-      };
-  }
-}
 
 const handleSensorData = (sensorData: SensorData): SensorData => ({
   nodeId: sensorData.nodeId,
   location: sensorData.location,
   devices: sensorData.devices.map(normalizeDevice),
 });
-
-const SensorDataSchema = z.object({
-  nodeId: z.string().min(1, "nodeId is required"),
-  location: z.string().min(1, "location is required"),
-  devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
-});
-
 
 
 type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
