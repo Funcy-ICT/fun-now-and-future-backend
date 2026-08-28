@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { sensordatetodb } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
-import { parseRawData } from "../services/parseRawData";
 import { normalizeDevice } from "../services/scan_service";
 import { SensorDataSchema, SensorData } from "../schema/sensor_data";
 
