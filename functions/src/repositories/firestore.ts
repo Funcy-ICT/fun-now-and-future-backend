@@ -5,21 +5,21 @@ import { z } from "zod";
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
 
-const panding_scans_schema = z.object({
+const pending_scans_schema = z.object({
   mac: z.string().array().min(1, "mac is required"),
   rssi: z.number().array().min(1, "rssi is required"),
   rawData: z.string().array().min(1, "rawData is required"),
   companyId: z.string().array().min(1, "companyId is required"),
 })
 
-const panding_scans_data_schema = z.object({
+const pending_scans_data_schema = z.object({
   nodeId: z.string().array().min(1, "nodeId is required"),
   location: z.string().array().min(1, "location is required"),
-  devices: z.array(panding_scans_schema).min(1, "devices must be a non-empty array"),
+  devices: z.array(pending_scans_schema).min(1, "devices must be a non-empty array"),
   received_at: z.string().array().min(1, "received_at is required"),
 });
 
-type PandingScansData = z.infer<typeof panding_scans_data_schema>;
+type PendingScansData = z.infer<typeof pending_scans_data_schema>;
 
 export async function sensordatetodb(parseResult: any) {
   //ESP32からのデータを取得
@@ -66,7 +66,7 @@ interface ScanRecord {
 // 過去の指定した時間のデータを取得する関数
 const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> => {
   const snapshot = await db
-    .collection("panding_scans")
+    .collection("pending_scans")
     .where("observed_at", ">=", start)//dateで渡しても、SDKによりFirestoreのtimestamp型に変換されるので問題ない
     .where("observed_at", "<", end)
     .get();
@@ -86,13 +86,13 @@ const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord 
   };
 }
 
-export const take_out_pending_scans = async (): Promise<PandingScansData[]> => {
-  const result: PandingScansData[] = [];
+export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
+  const result: PendingScansData[] = [];
   const snapshot = await db.collection("pending_scans").get();
 
   for (const doc of snapshot.docs) {
     const docId = doc.id;
-    const parsed = panding_scans_data_schema.safeParse(doc.data());
+    const parsed = pending_scans_data_schema.safeParse(doc.data());
     if (!parsed.success) {
       console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
       continue;
