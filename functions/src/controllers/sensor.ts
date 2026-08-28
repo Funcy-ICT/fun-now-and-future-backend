@@ -37,9 +37,24 @@ const normalizeDevice = (device: Device): ParsedDevice => {
   switch (device.format) {
     case "parsed":
       return device;
-      case "raw":
-        const parsedData = parseRawData(device.rawData);
+    case "raw":
+      const [companyId, nearbyInfo] = parseRawData(device.rawData);
+      return {
+        mac: device.mac,
+        rssi: device.rssi,
+        format: "parsed",
+        companyId,
+        nearbyInfo,
+      };
+  }
 }
+
+const handleSensorData = (sensorData: SensorData): SensorData => ({
+  nodeId: sensorData.nodeId,
+  location: sensorData.location,
+  devices: sensorData.devices.map(normalizeDevice),
+});
+
 const SensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
