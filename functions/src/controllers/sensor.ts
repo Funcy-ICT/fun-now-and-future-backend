@@ -11,11 +11,7 @@ import { SensorDataSchema, SensorData } from "../schema/sensor_data";
 
 
 
-const handleSensorData = (sensorData: SensorData): SensorData => ({
-  nodeId: sensorData.nodeId,
-  location: sensorData.location,
-  devices: sensorData.devices.map(normalizeDevice),
-});
+
 
 
 type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;

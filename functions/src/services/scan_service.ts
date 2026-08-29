@@ -1,6 +1,7 @@
 import { parseRawData } from "./parseRawData";
 import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
+import { SensorData } from "../schema/sensor_data";
 
 
 export const normalizeDevice = (device: Device): ParsedDevice => {
@@ -18,3 +19,10 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
       };
   }
 }
+
+
+const handleSensorData = (sensorData: SensorData): SensorData => ({
+  nodeId: sensorData.nodeId,
+  location: sensorData.location,
+  devices: sensorData.devices.map(normalizeDevice),
+});
