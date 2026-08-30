@@ -6,13 +6,6 @@ import { normalizeDevice } from "../services/scan_service";
 import { SensorDataSchema, SensorData } from "../schema/sensor_data";
 
 
-//ESP32から等間隔で送信されるBLEデータを受信するためのエンドポイントを定義する
-// 
-
-
-
-
-
 
 type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
 
@@ -27,8 +20,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
 
 
   const apiKey = c.req.header("x-api-key");
-  // apikeyの確認は、middleware層に分離しました。
-  // functions/middleware/sensor_aurh.tsに書いてあります。
+
   // APIキーの検証のためのsensorAuthMiddleware関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
   if (authResult === 0) {
@@ -46,8 +38,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
       message: errorMessage,
     }, 400);
   }
-  //データーベース部をリポジトリ層に分割しました。
-  //書いてあった処理は/functions/src/repositories/firestore.tsのsensordatetodb関数に書いてあります。
+
   //データベースに保存する処理を呼び出す
   const result = await sensordatetodb(parseResult);
   const sensorData = result.sensorData;

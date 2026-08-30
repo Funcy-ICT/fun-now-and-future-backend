@@ -36,8 +36,7 @@ export const congestion = async (c: any) => {
       message: parseResult.error.issues[0].message,
     }, 400);
   }
-  // 直近の混雑状況を取得する関数はリポジトリ層に移動しました。
-  // functions/src/repositories/firestore.tsのgetLatestSensorData関数に書いてあります。
+
   //ここで、リポジトリ層のgetLatestSensorData関数を呼び出して、最新のセンサーデータを取得します。
   const snapshot = await getLatestSensorData(parseResult.data.location);
 
@@ -73,8 +72,7 @@ export const congestion_history = async (c: any) => {
   }
 
 
-  // 直近の混雑状況を取得する関数はリポジトリ層に移動しました。 
-  // functions/src/repositories/firestore.tsのgetSensorDataHistory関数に書いてあります。
+
   //ここで、リポジトリ層のgetSensorDataHistory関数を呼び出して、指定された場所のセンサーデータ履歴を取得します。
   const snapshot = await getSensorDataHistory(parseResult.data.location, parseResult.data.limit);
 
@@ -106,20 +104,12 @@ export const congestion_history = async (c: any) => {
 const calculate_congestion_every_minute = () => {
   // Cloud Schedulerを使用して、定期的にこの関数を呼び出す
   // 5分ごとに呼び出すことを想定する
+  // まずは、Firestoreから、すべての場所の最新のセンサーデータを取得する。
+  // その次に、各locationで、Apple(アクセサリーを除く)デバイスの数を取り出す。
+  // すでに算出している最大値をもとに、混雑度を算出する。
+  // その後、Firestoreに、混雑度を保存する。
 
-}
+  const snapshot = take_out_pending_scans();
 
-const filter_rawData_by_BLE_CompanyId = () => {
-  const apple_companyId = "0x004C";
-
-}
-
-export const extract_companyId_from_rawData = (rawData: string[]): string | null => {
-  for (const data of rawData) {
-    if (data.startsWith("0x")) {
-      return data;
-    }
-  }
-  return null;
 }
 
