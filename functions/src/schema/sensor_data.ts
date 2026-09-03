@@ -27,9 +27,16 @@ export const SensorDataSchema = z.object({
   devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
 });
 
+export const ParsedSensorDataSchema = z.object({
+  nodeId: z.string().min(1, "nodeId is required"),
+  location: z.string().min(1, "location is required"),
+  devices: z.array(parsedDeviceSchema).min(1, "devices must be a non-empty array")
+});
+
 
 
 export type SensorData = z.infer<typeof SensorDataSchema>;
 export type Device = z.infer<typeof devicesSchema>;
 export type ParsedDevice = z.infer<typeof parsedDeviceSchema>;
 export type RawDevice = z.infer<typeof rawDeviceSchema>;
+export type ParsedSensorData = z.infer<typeof ParsedSensorDataSchema>;
