@@ -2,6 +2,7 @@ import { parseRawData } from "./parseRawData";
 import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
 import { SensorData } from "../schema/sensor_data";
+import { ParsedSensorData } from "../schema/sensor_data";
 
 
 export const normalizeDevice = (device: Device): ParsedDevice => {
@@ -21,8 +22,10 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
 }
 
 
-const handleSensorData = (sensorData: SensorData): SensorData => ({
+const handleSensorData = (sensorData: SensorData): ParsedSensorData => ({
   nodeId: sensorData.nodeId,
   location: sensorData.location,
   devices: sensorData.devices.map(normalizeDevice),
 });
+
+// これを保存すると仮定する。どっちみちcompanyIdとnearbyInfoは、rawの時も, parsedの時も保存する。

@@ -106,10 +106,12 @@ const calculate_congestion_every_minute = () => {
   // 5分ごとに呼び出すことを想定する
   // まずは、Firestoreから、すべての場所の最新のセンサーデータを取得する。
   // その次に、各locationで、Apple(アクセサリーを除く)デバイスの数を取り出す。
+  // その次に、macアドレスの重複を除外する。
   // すでに算出している最大値をもとに、混雑度を算出する。
   // その後、Firestoreに、混雑度を保存する。
 
   const snapshot = take_out_pending_scans();
+  
 
 }
 
