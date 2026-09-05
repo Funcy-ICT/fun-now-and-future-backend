@@ -29,4 +29,21 @@ const handleSensorData = (sensorData: SensorData): ParsedSensorData => ({
   devices: sensorData.devices.map(normalizeDevice),
 });
 
-// これを保存すると仮定する。どっちみちcompanyIdとnearbyInfoは、rawの時も, parsedの時も保存する。
+
+export type UniqueDevice = {
+  mac: string;
+  rssi: number;
+};
+
+export const dedupeByMac = (devices: ParsedDevice[]): UniqueDevice[] => {
+  const maxRssiByMac = new Map<string, number>();
+
+  for (const device of devices) {
+    const current = maxRssiByMac.get(device.mac);
+    if (current === undefined || device.rssi > current) {
+      maxRssiByMac.set(device.mac, device.rssi);
+    }
+  }
+
+  return [...maxRssiByMac].map(([mac, rssi]) => ({ mac, rssi }));
+};

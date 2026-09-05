@@ -116,4 +116,3 @@ const calculate_congestion_every_minute = () => {
   const snapshot = take_out_pending_scans();
 
 }
-
