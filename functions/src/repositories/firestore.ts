@@ -208,3 +208,23 @@ const saving_node_health_status = async (nodeId: string, location: string, windo
     .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
     .set(result.data);
 };
+
+export const saveCongestionRecords = async (
+  records: CongestionRecordInput[],
+  windowStart: Timestamp,
+): Promise<void> => {
+  if (records.length === 0) return;
+
+  const batch = db.batch();
+  const collection = db.collection("congestion_records");
+
+  for (const record of records) {
+    batch.set(collection.doc(), {
+      location: record.location,
+      windowStart,
+      uniqueDeviceCount: record.uniqueDeviceCount,
+    });
+  }
+
+  await batch.commit();
+};
