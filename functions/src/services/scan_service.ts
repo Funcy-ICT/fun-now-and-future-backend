@@ -61,3 +61,33 @@ export const groupByLocation = (
 
   return byLocation;
 };
+
+export type NodeHealthStat = {
+  nodeId: string;
+  location: string;
+  postCount: number;
+  totalMacCount: number;
+};
+
+export const aggregateNodeHealth = (
+  scans: ParsedSensorData[],
+): NodeHealthStat[] => {
+  const byNode = new Map<string, NodeHealthStat>();
+
+  for (const scan of scans) {
+    const current = byNode.get(scan.nodeId);
+    if (current === undefined) {
+      byNode.set(scan.nodeId, {
+        nodeId: scan.nodeId,
+        location: scan.location,
+        postCount: 1,
+        totalMacCount: scan.devices.length,
+      });
+    } else {
+      current.postCount += 1;
+      current.totalMacCount += scan.devices.length;
+    }
+  }
+
+  return [...byNode.values()];
+};
