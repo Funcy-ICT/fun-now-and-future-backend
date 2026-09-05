@@ -9,17 +9,18 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
   switch (device.format) {
     case "parsed":
       return device;
-    case "raw":
-      const [companyId, nearbyInfo] = parseRawData(device.rawData);
+    case "raw": {
+      const { companyId, isNearbyInfo } = parseRawData(device.rawData);
       return {
         mac: device.mac,
         rssi: device.rssi,
         format: "parsed",
         companyId,
-        nearbyInfo,
+        isNearbyInfo,
       };
+    }
   }
-}
+};
 
 
 const handleSensorData = (sensorData: SensorData): ParsedSensorData => ({

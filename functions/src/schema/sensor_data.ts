@@ -9,8 +9,8 @@ export const deviceBase = {
 export const parsedDeviceSchema = z.object({
   ...deviceBase,
   format: z.literal("parsed"),
-  companyId: z.string().min(1, "companyId is required"),
-  nearbyInfo: z.string().min(1, "nearbyInfo is required"),
+  companyId: z.string().length(4).nullable(),
+  isNearbyInfo: z.boolean(),
 });
 
 export const rawDeviceSchema = z.object({
