@@ -1,3 +1,8 @@
+export type ParsedAdvertisement = {
+  companyId: string | null;
+  isNearbyInfo: boolean;
+};
+
 const getByte = (data: string, byte_location: number): string => {// hex文字列: 2文字 = 1バイト
     return data.slice(byte_location * 2, byte_location * 2 + 2);
 };
