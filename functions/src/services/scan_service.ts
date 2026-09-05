@@ -47,3 +47,17 @@ export const dedupeByMac = (devices: ParsedDevice[]): UniqueDevice[] => {
 
   return [...maxRssiByMac].map(([mac, rssi]) => ({ mac, rssi }));
 };
+
+export const groupByLocation = (
+  scans: ParsedSensorData[],
+): Map<string, ParsedDevice[]> => {
+  const byLocation = new Map<string, ParsedDevice[]>();
+
+  for (const scan of scans) {
+    const devices = byLocation.get(scan.location) ?? [];
+    devices.push(...scan.devices);
+    byLocation.set(scan.location, devices);
+  }
+
+  return byLocation;
+};
