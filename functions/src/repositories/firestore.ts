@@ -1,5 +1,13 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
+import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { SensorData } from "../schema/sensor_data";
+
+export type CongestionRecordInput = {
+  location: string;
+  uniqueDeviceCount: number;
+};
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
@@ -21,20 +29,12 @@ const pending_scans_data_schema = z.object({
 
 type PendingScansData = z.infer<typeof pending_scans_data_schema>;
 
-export async function sensordatetodb(parseResult: any) {
-  //ESP32からのデータを取得
-  const sensorData = parseResult.data;
-  //(default)データベースに保存
-  const receivedAt = new Date().toISOString();
+export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
   await db.collection("pending_scans").add({
     ...sensorData,
-    received_at: receivedAt,
+    received_at: FieldValue.serverTimestamp(),
   });
-
-  //firebaseのログ
-  console.info("Received data from ESP32", sensorData);
-  return { sensorData, receivedAt };
-}
+};
 
 
 export async function getLatestSensorData(location: string) {
