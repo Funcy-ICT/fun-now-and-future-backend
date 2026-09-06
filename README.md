@@ -176,7 +176,7 @@ npm test
 ## Dockerでのビルド・起動
 
 ```bash
-cd functions
+cd cloud
 docker build -t fun-now-and-future-backend .
 docker run -p 8080:8080 fun-now-and-future-backend
 curl http://localhost:8080/health
@@ -185,5 +185,5 @@ curl http://localhost:8080/health
 ## Cloud Runへのデプロイ
 
 ```bash
-gcloud run deploy --source functions
+gcloud run deploy --source cloud
 ```
