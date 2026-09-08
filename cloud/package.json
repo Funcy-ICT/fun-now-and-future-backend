@@ -1,14 +1,12 @@
 {
-  "name": "functions",
+  "name": "cloud",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "serve": "npm run build && firebase emulators:start --only functions",
-    "shell": "npm run build && firebase functions:shell",
     "start": "node lib/index.js",
-    "deploy": "firebase deploy --only functions",
-    "test": "firebase emulators:exec --only firestore --project fun-now-and-future \"jest\"",
-    "logs": "firebase functions:log"
+    "dev": "tsx watch src/index.ts",
+    "test": "firebase emulators:exec --only firestore,pubsub --project demo-fnaf \"jest\"",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": "24"
@@ -26,7 +24,8 @@
     "jest": "^30.4.2",
     "node-mocks-http": "^1.18.0",
     "ts-jest": "^29.4.11",
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.0",
+    "firebase-tools": "^15.0.0"
   },
   "private": true
 }
