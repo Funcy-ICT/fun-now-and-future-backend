@@ -190,23 +190,24 @@ const NodeStatusSchema = z.object({
 type NodeStatusData = z.infer<typeof NodeStatusSchema>;
 
 
-const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMacCount: number): Promise<void> => {
-  const result = NodeStatusSchema.safeParse({
-    nodeId,
-    location,
-    windowStart,//これはESP32から送られる集計窓の開始日時(絶対時刻グリッドの00分, 05分, 10分…)を保存する
-    postCount,
-    totalMacCount,
-  });
-  if (!result.success) {
-    console.error("Validation failed:", result.error.issues);
-    throw new Error("Invalid data for saving node health status");
+export const saving_node_health_status = async (stats: NodeStatusData[]): Promise<void> => {
+  if (stats.length === 0) return;
+
+  const batch = db.batch();
+  const collection = db.collection("node_health_stats");
+
+  for (const stat of stats) {
+    const result = NodeStatusSchema.safeParse(stat);
+    if (!result.success) {
+      console.error("Validation failed:", result.error.issues);
+      throw new Error("Invalid data for saving node health status");
+    }
+    const windowKey = result.data.windowStart.toDate().toISOString();
+    //issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
+    batch.set(collection.doc(`${result.data.nodeId}_${windowKey}`), result.data);
   }
 
-  await db
-    .collection("node_health_status")
-    .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
-    .set(result.data);
+  await batch.commit();
 };
 
 export const saveCongestionRecords = async (
