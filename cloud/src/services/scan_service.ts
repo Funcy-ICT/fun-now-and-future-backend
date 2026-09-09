@@ -3,6 +3,8 @@ import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
 import { SensorData } from "../schema/sensor_data";
 import { ParsedSensorData } from "../schema/sensor_data";
+import { NodeStatusData } from "../repositories/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 
 export const normalizeDevice = (device: Device): ParsedDevice => {
@@ -70,9 +72,10 @@ export type NodeHealthStat = {
 };
 
 export const aggregateNodeHealth = (
-  scans: ParsedSensorData[],
-): NodeHealthStat[] => {
-  const byNode = new Map<string, NodeHealthStat>();
+  scans: { nodeId: string; location: string; devices: unknown[] }[],
+  windowStart: Timestamp,
+): NodeStatusData[] => {
+  const byNode = new Map<string, NodeStatusData>();
 
   for (const scan of scans) {
     const current = byNode.get(scan.nodeId);
@@ -80,6 +83,7 @@ export const aggregateNodeHealth = (
       byNode.set(scan.nodeId, {
         nodeId: scan.nodeId,
         location: scan.location,
+        windowStart,
         postCount: 1,
         totalMacCount: scan.devices.length,
       });

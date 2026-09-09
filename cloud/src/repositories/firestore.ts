@@ -187,7 +187,7 @@ const NodeStatusSchema = z.object({
   totalMacCount: z.number().min(0, "totalMacCount must be at least 0"),
 });
 
-type NodeStatusData = z.infer<typeof NodeStatusSchema>;
+export type NodeStatusData = z.infer<typeof NodeStatusSchema>;
 
 
 export const saving_node_health_status = async (stats: NodeStatusData[]): Promise<void> => {
