@@ -95,3 +95,11 @@ export const aggregateNodeHealth = (
 
   return [...byNode.values()];
 };
+
+const WINDOW_MS = 5 * 60 * 1000;
+
+export const previousWindowStart = (date: Date): Timestamp => {
+  const currentWindowStartMs = Math.floor(date.getTime() / WINDOW_MS) * WINDOW_MS;
+  const previousWindowStartMs = currentWindowStartMs - WINDOW_MS;
+  return Timestamp.fromMillis(previousWindowStartMs);
+};
