@@ -182,21 +182,21 @@ async function getNextSequenceNumber(
 const NodeStatusSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  windowStart: z.string().min(1, "windowStart is required"),
+  windowStart: z.instanceof(Timestamp),
   postCount: z.number().min(0, "postCount must be at least 0"),
-  totalMaxCount: z.number().min(1, "totalMaxCount must be at least 1"),
+  totalMacCount: z.number().min(0, "totalMacCount must be at least 0"),
 });
 
 type NodeStatusData = z.infer<typeof NodeStatusSchema>;
 
 
-const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMaxCount: number): Promise<void> => {
+const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMacCount: number): Promise<void> => {
   const result = NodeStatusSchema.safeParse({
     nodeId,
     location,
     windowStart,//これはESP32から送られる集計窓の開始日時(絶対時刻グリッドの00分, 05分, 10分…)を保存する
     postCount,
-    totalMaxCount,
+    totalMacCount,
   });
   if (!result.success) {
     console.error("Validation failed:", result.error.issues);
