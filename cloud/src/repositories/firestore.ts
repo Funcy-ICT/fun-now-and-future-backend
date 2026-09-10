@@ -102,7 +102,7 @@ export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
   return result;
 }
 
-const delete_pending_scans = async (): Promise<void> => {
+export const delete_pending_scans = async (): Promise<void> => {
   const collectionRef = db.collection("pending_scans");
   const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
   let totalDeleted = 0;

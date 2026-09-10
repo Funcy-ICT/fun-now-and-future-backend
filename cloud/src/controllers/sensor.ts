@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { sensordatetodb } from "../repositories/firestore";
+import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { normalizeDevice } from "../services/scan_service";
 import { SensorDataSchema, SensorData } from "../schema/sensor_data";
@@ -9,6 +9,10 @@ import { take_out_pending_scans } from "../repositories/firestore";
 import { aggregateNodeHealth } from "../services/scan_service";
 import { groupByLocation } from "../services/scan_service";
 import { dedupeByMac } from "../services/scan_service";
+import { filterByRssi } from "../services/scan_service";
+import { saveCongestionRecords } from "../repositories/firestore";
+import { saving_node_health_status } from "../repositories/firestore";
+import { delete_pending_scans } from "../repositories/firestore";
 
 
 type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
@@ -44,7 +48,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   }
 
   //データベースに保存する処理を呼び出す
-  const result = await sensordatetodb(parseResult);
+  const result = await savePendingScan(parseResult.data);
   const sensorData = result.sensorData;
   const receivedAt = result.receivedAt;
   //正しく届いたか確認
@@ -89,4 +93,17 @@ aggregateRoute.post("/aggregate", async (c) => {
   const byLocation = groupByLocation(normalized);
 
   const records = [...byLocation].map(([location, devices]) => {
-})});
+    const countable = devices.filter(isCountable);
+    const unique = dedupeByMac(countable);
+    const filtered = filterByRssi(unique, RSSI_THRESHOLD);
+    return { location, uniqueDeviceCount: filtered.length };
+});
+  await saveCongestionRecords(records, windowStart);
+  await saving_node_health_status(healthStats);
+  await delete_pending_scans();
+
+  console.info("aggregate finished", {
+    scanCount: scans.length,
+    locationCount: records.length,
+  });
+});
