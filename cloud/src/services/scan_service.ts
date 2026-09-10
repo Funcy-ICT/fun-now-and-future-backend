@@ -103,3 +103,6 @@ export const previousWindowStart = (date: Date): Timestamp => {
   const previousWindowStartMs = currentWindowStartMs - WINDOW_MS;
   return Timestamp.fromMillis(previousWindowStartMs);
 };
+
+export const isAppleNearbyDevice = (device: ParsedDevice): boolean =>
+  device.companyId === "004C" && device.isNearbyInfo;
