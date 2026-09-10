@@ -13,6 +13,7 @@ import { filterByRssi } from "../services/scan_service";
 import { saveCongestionRecords } from "../repositories/firestore";
 import { saving_node_health_status } from "../repositories/firestore";
 import { delete_pending_scans } from "../repositories/firestore";
+import { isAppleNearbyDevice } from "../services/scan_service";
 
 
 type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
@@ -22,14 +23,16 @@ export const sensorRoute = new Hono();
 
 
 sensorRoute.post("/receiveSensorData", async (c) => {
-  //# ヘッダーなしで実行するとエラーになることを確認
-  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"nodeId\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
-  //API key確認
+  // ヘッダーなしで実行するとエラーになることを確認
+  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \
+  //   -H "Content-Type: application/json" \
+  //   -H "x-api-key: <YOUR_API_KEY>" \
+  //   -d '{"nodeId": "esp32_test", "location": "moscow", ...}'
 
-
+  // API key 確認
   const apiKey = c.req.header("x-api-key");
 
-  // APIキーの検証のためのsensorAuthMiddleware関数を呼び出す
+  // APIキーの検証のための sensorAuthMiddleware 関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
   if (authResult === 0) {
     return c.json({
@@ -47,16 +50,20 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
-  //データベースに保存する処理を呼び出す
-  const result = await savePendingScan(parseResult.data);
-  const sensorData = result.sensorData;
-  const receivedAt = result.receivedAt;
-  //正しく届いたか確認
+  // データベースに保存する処理を呼び出す
+  await savePendingScan(parseResult.data);
+
+  // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
+  // レスポンス用の received_at はハンドラ側で生成する。
+  const sensorData = parseResult.data;
+  const receivedAt = new Date().toISOString();
+
+  // 正しく届いたか確認
   return c.json({
     status: "success",
     message: "Data received successfully",
     received_at: receivedAt,
-    data: sensorData
+    data: sensorData,
   }, 200);
 });
 
@@ -93,7 +100,7 @@ aggregateRoute.post("/aggregate", async (c) => {
   const byLocation = groupByLocation(normalized);
 
   const records = [...byLocation].map(([location, devices]) => {
-    const countable = devices.filter(isCountable);
+    const countable = devices.filter(isAppleNearbyDevice);
     const unique = dedupeByMac(countable);
     const filtered = filterByRssi(unique, RSSI_THRESHOLD);
     return { location, uniqueDeviceCount: filtered.length };
