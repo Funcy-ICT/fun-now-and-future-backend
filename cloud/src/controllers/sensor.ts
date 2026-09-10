@@ -1,9 +1,8 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { normalizeDevice } from "../services/scan_service";
-import { SensorDataSchema, SensorData } from "../schema/sensor_data";
+import { SensorDataSchema, } from "../schema/sensor_data";
 import { previousWindowStart } from "../services/scan_service";
 import { take_out_pending_scans } from "../repositories/firestore";
 import { aggregateNodeHealth } from "../services/scan_service";
@@ -15,8 +14,6 @@ import { saving_node_health_status } from "../repositories/firestore";
 import { delete_pending_scans } from "../repositories/firestore";
 import { isAppleNearbyDevice } from "../services/scan_service";
 
-
-type SensorDataSchemaType = z.infer<typeof SensorDataSchema>;
 
 
 export const sensorRoute = new Hono();
@@ -113,4 +110,8 @@ aggregateRoute.post("/aggregate", async (c) => {
     scanCount: scans.length,
     locationCount: records.length,
   });
-});
+  return c.json({
+    windowStart: windowStart.toDate().toISOString(),
+    scanCount: scans.length,
+    locationCount: records.length,
+  })});
