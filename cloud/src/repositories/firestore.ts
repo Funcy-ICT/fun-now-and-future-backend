@@ -99,7 +99,7 @@ export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
 
   for (const doc of snapshot.docs) {
     const docId = doc.id;
-    const parsed = pending_scans_data_schema.safeParse(doc.data());
+    const parsed = pendingScanDocSchema.safeParse(doc.data());
     if (!parsed.success) {
       console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
       continue;
