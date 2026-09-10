@@ -106,3 +106,10 @@ export const previousWindowStart = (date: Date): Timestamp => {
 
 export const isAppleNearbyDevice = (device: ParsedDevice): boolean =>
   device.companyId === "004C" && device.isNearbyInfo;
+
+export const filterByRssi = (
+  devices: ParsedDevice[],
+  minRssi: number
+): ParsedDevice[] => {
+  return devices.filter(device => device.rssi >= minRssi);
+}
