@@ -108,8 +108,8 @@ export const isAppleNearbyDevice = (device: ParsedDevice): boolean =>
   device.companyId === "004C" && device.isNearbyInfo;
 
 export const filterByRssi = (
-  devices: ParsedDevice[],
+  devices: UniqueDevice[],
   minRssi: number
-): ParsedDevice[] => {
+): UniqueDevice[] => {
   return devices.filter(device => device.rssi >= minRssi);
 }
