@@ -24,13 +24,13 @@ export const devicesSchema = z.discriminatedUnion("format", [parsedDeviceSchema,
 export const SensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  devices: z.array(devicesSchema).min(1, "devices must be a non-empty array")
+  devices: z.array(devicesSchema).default([])
 });
 
 export const ParsedSensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  devices: z.array(parsedDeviceSchema).min(1, "devices must be a non-empty array")
+  devices: z.array(devicesSchema).default([])
 });
 
 
