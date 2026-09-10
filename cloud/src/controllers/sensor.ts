@@ -93,6 +93,7 @@ aggregateRoute.post("/aggregate", async (c) => {
   const normalized = scans.map(scan => ({
     location: scan.location,
     devices: scan.devices.map(normalizeDevice),
+    nodeId: scan.nodeId,
   }));
 
   const byLocation = groupByLocation(normalized);
