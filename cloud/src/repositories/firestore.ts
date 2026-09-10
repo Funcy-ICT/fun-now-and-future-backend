@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { SensorData } from "../schema/sensor_data";
+import { SensorDataSchema } from "../schema/sensor_data";
 
 export type CongestionRecordInput = {
   location: string;
@@ -27,7 +28,13 @@ const pending_scans_data_schema = z.object({
   received_at: z.string().array().min(1, "received_at is required"),
 });
 
-type PendingScansData = z.infer<typeof pending_scans_data_schema>;
+
+
+const pendingScanDocSchema = SensorDataSchema.extend({
+  received_at: z.instanceof(Timestamp),
+});
+
+type PendingScansData = z.infer<typeof pendingScanDocSchema>;
 
 export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
   await db.collection("pending_scans").add({
