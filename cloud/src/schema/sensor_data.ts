@@ -2,7 +2,7 @@ import { z } from "zod";
 
 
 export const deviceBase = {
-  mac: z.string().min(1, "mac is required").transform(s => s.toLowerCase()),
+  mac: z.string().min(1, "mac is required").transform(s => s.toUpperCase()),
   rssi: z.number().min(-100, "rssi must be greater than or equal to -100").max(0, "rssi must be less than or equal to 0"),
 };
 
