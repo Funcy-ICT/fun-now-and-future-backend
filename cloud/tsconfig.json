@@ -11,7 +11,10 @@
     "strict": true,
     "target": "es2017",
     "isolatedModules": true,
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node"
+    ]
   },
   "compileOnSave": true,
   "include": [
