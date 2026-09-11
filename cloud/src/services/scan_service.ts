@@ -1,7 +1,6 @@
 import { parseRawData } from "./parseRawData";
 import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
-import { SensorData } from "../schema/sensor_data";
 import { ParsedSensorData } from "../schema/sensor_data";
 import { NodeStatusData } from "../repositories/firestore";
 import { Timestamp } from "firebase-admin/firestore";
@@ -23,13 +22,6 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
     }
   }
 };
-
-
-const handleSensorData = (sensorData: SensorData): ParsedSensorData => ({
-  nodeId: sensorData.nodeId,
-  location: sensorData.location,
-  devices: sensorData.devices.map(normalizeDevice),
-});
 
 
 export type UniqueDevice = {

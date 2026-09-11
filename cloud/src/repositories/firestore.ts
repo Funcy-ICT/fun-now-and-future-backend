@@ -14,21 +14,6 @@ export type CongestionRecordInput = {
 // ESP32からのデータを受け取り、Firestoreに保存する関数
 // ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
 
-const pending_scans_schema = z.object({
-  mac: z.string().array().min(1, "mac is required"),
-  rssi: z.number().array().min(1, "rssi is required"),
-  rawData: z.string().array().min(1, "rawData is required"),
-  companyId: z.string().array().min(1, "companyId is required"),
-})
-
-const pending_scans_data_schema = z.object({
-  nodeId: z.string().array().min(1, "nodeId is required"),
-  location: z.string().array().min(1, "location is required"),
-  devices: z.array(pending_scans_schema).min(1, "devices must be a non-empty array"),
-  received_at: z.string().array().min(1, "received_at is required"),
-});
-
-
 
 const pendingScanDocSchema = SensorDataSchema.extend({
   received_at: z.instanceof(Timestamp),
@@ -63,7 +48,7 @@ export async function getSensorDataHistory(location: string, limit: number) {
 }
 
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
-interface ScanRecord {
+export interface ScanRecord {
   mac: string;
   nodeId: string;
   observed_at: Date;
@@ -71,7 +56,7 @@ interface ScanRecord {
 };
 
 // 過去の指定した時間のデータを取得する関数
-const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> => {
+export const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> => {
   const snapshot = await db
     .collection("pending_scans")
     .where("observed_at", ">=", start)//dateで渡しても、SDKによりFirestoreのtimestamp型に変換されるので問題ない
@@ -83,7 +68,7 @@ const getScansInWindow = async (start: Date, end: Date): Promise<ScanRecord[]> =
   }));
 }
 
-const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord => {
+export const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): ScanRecord => {
   const data = doc.data();
   return {
     mac: data.mac,
@@ -139,9 +124,9 @@ const MaxDeviceSchema = z.object({
   updated_at: z.string().min(1, "updated_at is required"),
 });
 
-type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
+export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
 
-const saving_max_devices = async (location: string, weekday: number, maxDevice: number): Promise<void> => {
+export const saving_max_devices = async (location: string, weekday: number, maxDevice: number): Promise<void> => {
   const result = MaxDeviceSchema.safeParse({
     location,
     weekday,
@@ -164,7 +149,7 @@ const saving_max_devices = async (location: string, weekday: number, maxDevice: 
 
 
 // 自動採番を行うための関数
-async function getNextSequenceNumber(
+export async function getNextSequenceNumber(
   counterName: string
 ): Promise<number> {
   const counterRef = db.collection("counters").doc(counterName);
