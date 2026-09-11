@@ -2,9 +2,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
-import { take_out_pending_scans } from "../repositories/firestore";
-import { parseRawData } from "./parseRawData";
-import { ParsedDataSchema } from "../schema/sensor_data";
 
 
 export const LocationQuerySchema = z.object({

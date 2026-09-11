@@ -30,7 +30,7 @@ export const SensorDataSchema = z.object({
 export const ParsedSensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  devices: z.array(devicesSchema).default([])
+  devices: z.array(parsedDeviceSchema).default([])
 });
 
 
