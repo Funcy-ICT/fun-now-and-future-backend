@@ -103,7 +103,7 @@ aggregateRoute.post("/aggregate", async (c) => {
     const unique = dedupeByMac(countable);
     const filtered = filterByRssi(unique, RSSI_THRESHOLD);
     return { location, uniqueDeviceCount: filtered.length };
-});
+  });
   await saveCongestionRecords(records, windowStart);
   await saving_node_health_status(healthStats);
   await delete_pending_scans();
@@ -116,4 +116,5 @@ aggregateRoute.post("/aggregate", async (c) => {
     windowStart: windowStart.toDate().toISOString(),
     scanCount: scans.length,
     locationCount: records.length,
-  })});
+  })
+});
