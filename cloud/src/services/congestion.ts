@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
-import { take_out_pending_scans } from "../repositories/firestore";
-import { parseRawData } from "./parseRawData";
+
 
 export const LocationQuerySchema = z.object({
   location: z.string().min(1, "location query parameter is required"),
@@ -100,16 +99,3 @@ export const congestion_history = async (c: any) => {
     data: history,
   }, 200);
 }
-
-const calculate_congestion_every_minute = () => {
-  // Cloud Schedulerを使用して、定期的にこの関数を呼び出す
-  // 5分ごとに呼び出すことを想定する
-  // まずは、Firestoreから、すべての場所の最新のセンサーデータを取得する。
-  // その次に、各locationで、Apple(アクセサリーを除く)デバイスの数を取り出す。
-  // すでに算出している最大値をもとに、混雑度を算出する。
-  // その後、Firestoreに、混雑度を保存する。
-
-  const snapshot = take_out_pending_scans();
-
-}
-

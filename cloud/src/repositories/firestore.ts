@@ -1,5 +1,14 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
+import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { SensorData } from "../schema/sensor_data";
+import { SensorDataSchema } from "../schema/sensor_data";
+
+export type CongestionRecordInput = {
+  location: string;
+  uniqueDeviceCount: number;
+};
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
@@ -19,22 +28,20 @@ const pending_scans_data_schema = z.object({
   received_at: z.string().array().min(1, "received_at is required"),
 });
 
-type PendingScansData = z.infer<typeof pending_scans_data_schema>;
 
-export async function sensordatetodb(parseResult: any) {
-  //ESP32からのデータを取得
-  const sensorData = parseResult.data;
-  //(default)データベースに保存
-  const receivedAt = new Date().toISOString();
+
+const pendingScanDocSchema = SensorDataSchema.extend({
+  received_at: z.instanceof(Timestamp),
+});
+
+type PendingScansData = z.infer<typeof pendingScanDocSchema>;
+
+export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
   await db.collection("pending_scans").add({
     ...sensorData,
-    received_at: receivedAt,
+    received_at: FieldValue.serverTimestamp(),
   });
-
-  //firebaseのログ
-  console.info("Received data from ESP32", sensorData);
-  return { sensorData, receivedAt };
-}
+};
 
 
 export async function getLatestSensorData(location: string) {
@@ -92,7 +99,7 @@ export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
 
   for (const doc of snapshot.docs) {
     const docId = doc.id;
-    const parsed = pending_scans_data_schema.safeParse(doc.data());
+    const parsed = pendingScanDocSchema.safeParse(doc.data());
     if (!parsed.success) {
       console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
       continue;
@@ -102,7 +109,7 @@ export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
   return result;
 }
 
-const delete_pending_scans = async (): Promise<void> => {
+export const delete_pending_scans = async (): Promise<void> => {
   const collectionRef = db.collection("pending_scans");
   const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
   let totalDeleted = 0;
@@ -182,29 +189,50 @@ async function getNextSequenceNumber(
 const NodeStatusSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  windowStart: z.string().min(1, "windowStart is required"),
+  windowStart: z.instanceof(Timestamp),
   postCount: z.number().min(0, "postCount must be at least 0"),
-  totalMaxCount: z.number().min(1, "totalMaxCount must be at least 1"),
+  totalMacCount: z.number().min(0, "totalMacCount must be at least 0"),
 });
 
-type NodeStatusData = z.infer<typeof NodeStatusSchema>;
+export type NodeStatusData = z.infer<typeof NodeStatusSchema>;
 
 
-const saving_node_health_status = async (nodeId: string, location: string, windowStart: string, postCount: number, totalMaxCount: number): Promise<void> => {
-  const result = NodeStatusSchema.safeParse({
-    nodeId,
-    location,
-    windowStart,//これはESP32から送られる集計窓の開始日時(絶対時刻グリッドの00分, 05分, 10分…)を保存する
-    postCount,
-    totalMaxCount,
-  });
-  if (!result.success) {
-    console.error("Validation failed:", result.error.issues);
-    throw new Error("Invalid data for saving node health status");
+export const saving_node_health_status = async (stats: NodeStatusData[]): Promise<void> => {
+  if (stats.length === 0) return;
+
+  const batch = db.batch();
+  const collection = db.collection("node_health_stats");
+
+  for (const stat of stats) {
+    const result = NodeStatusSchema.safeParse(stat);
+    if (!result.success) {
+      console.error("Validation failed:", result.error.issues);
+      throw new Error("Invalid data for saving node health status");
+    }
+    const windowKey = result.data.windowStart.toDate().toISOString();
+    //issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
+    batch.set(collection.doc(`${result.data.nodeId}_${windowKey}`), result.data);
   }
 
-  await db
-    .collection("node_health_status")
-    .doc(`${result.data.nodeId}_${result.data.windowStart}`)//issue#1から変更。nodeId_windowStartの組み合わせで一意になるようにする
-    .set(result.data);
+  await batch.commit();
+};
+
+export const saveCongestionRecords = async (
+  records: CongestionRecordInput[],
+  windowStart: Timestamp,
+): Promise<void> => {
+  if (records.length === 0) return;
+
+  const batch = db.batch();
+  const collection = db.collection("congestion_records");
+
+  for (const record of records) {
+    batch.set(collection.doc(), {
+      location: record.location,
+      windowStart,
+      uniqueDeviceCount: record.uniqueDeviceCount,
+    });
+  }
+
+  await batch.commit();
 };

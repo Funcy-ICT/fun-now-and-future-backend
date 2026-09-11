@@ -13,7 +13,7 @@ describe("receiveSensorData", () => {
 				"location": "london",
 				"devices": [
 					{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
-					{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "nearbyInfo": "10" }
+					{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }// 元は { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "nearbyInfo": "10" } だったが、isNearbyInfoに変更
 				]
 			}),
 		});
@@ -27,7 +27,7 @@ describe("receiveSensorData", () => {
 			"location": "london",
 			"devices": [
 				{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
-				{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "nearbyInfo": "10" }
+				{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }// 元は { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "nearbyInfo": "10" } だったが、isNearbyInfoに変更
 			]
 		});
 	});
