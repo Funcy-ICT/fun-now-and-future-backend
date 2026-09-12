@@ -6,10 +6,6 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
 
 ## お約束
 
-### プログラムを書く上で
-基本的に下記のサイトに書いてることに従います。  
-https://golang.org/doc/effective_go.html
-
 ### Github
 #### Branch命名規則
 - master
@@ -79,23 +75,45 @@ src/
 ESP32（センサー端末）から BLE 検知データを受信し、Firestore に保存。
 * 認証 - ヘッダー `x-api-key: <API_KEY>`
 * リクエストボディ
+- rawDataを送る場合（Wi-Fi環境を想定, クラウドで詳細にパースし分析可能）
 ```json
-{
-  "sensor_id": "esp32_cafeteria_01",
-  "location": "cafeteria",
-  "ble_advertising_raw_data": ["raw_packet_1", "raw_packet_2"],
-  "timestamp": "2026-07-28T07:30:00.000Z",
-  "ble_mac_addresses": ["AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"]
-}
+"nodeId": "esp32_cafeteria_01",
+"location": "cafeteria",
+"devices": [
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" }
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605ffff" }
+]
 ```
-* レスポンス例 (200 OK)
+
+- パース済みデータを送る場合
 ```json
-{
-  "status": "success",
-  "message": "Data received successfully",
-  "received_at": "2026-07-28T07:30:00.000Z",
-  "data": { "sensor_id": "esp32_cafeteria_01", "location": "cafeteria", "...": "..." }
-}
+"nodeId": "esp32_cafeteria_01",
+"location": "cafeteria",
+"devices": [
+	{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:01", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }
+  { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "00E0", "isNearbyInfo": false }
+]
+```
+
+* レスポンス例 (200 OK)
+- rawDataを送る場合（Wi-Fi環境を想定, クラウドで詳細にパースし分析可能）
+```json
+"nodeId": "esp32_cafeteria_01",
+"location": "cafeteria",
+"devices": [
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605fffffff"}
+]
+```
+
+- パース済みデータを送る場合
+```json
+"nodeId": "esp32_cafeteria_01",
+"location": "cafeteria",
+"devices": [
+	{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:01", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }
+  { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "00E0", "isNearbyInfo": false }
+]
 ```
 
 ### 3. GET /getCongestion
