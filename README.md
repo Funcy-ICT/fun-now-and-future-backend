@@ -81,7 +81,7 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
 "location": "cafeteria",
 "devices": [
 	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" }
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605ffff” }
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605ffff" }
 ]
 ```
 
@@ -102,7 +102,7 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
 "location": "cafeteria",
 "devices": [
 	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605fffffff”}
+	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605fffffff"}
 ]
 ```
 
