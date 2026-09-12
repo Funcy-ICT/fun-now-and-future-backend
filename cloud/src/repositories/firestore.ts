@@ -235,3 +235,19 @@ const PrAssetSchema = z.object({
 });
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;
+
+
+export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
+  const result: PrAsset[] = [];
+  const snapshot = await db.collection("prAssets").where("status", "==", "approved").get();
+
+  for (const doc of snapshot.docs) {
+    const parsed = PrAssetSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in prAssets document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
