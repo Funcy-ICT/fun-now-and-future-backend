@@ -1,33 +1,38 @@
 import { Hono } from "hono";
-import { z } from "zod";
-import {sensordatetodb} from "../repositories/firestore";
+import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
+import { normalizeDevice } from "../services/scan_service";
+import { SensorDataSchema, } from "../schema/sensor_data";
+import { previousWindowStart } from "../services/scan_service";
+import { take_out_pending_scans } from "../repositories/firestore";
+import { aggregateNodeHealth } from "../services/scan_service";
+import { groupByLocation } from "../services/scan_service";
+import { dedupeByMac } from "../services/scan_service";
+import { filterByRssi } from "../services/scan_service";
+import { saveCongestionRecords } from "../repositories/firestore";
+import { saving_node_health_status } from "../repositories/firestore";
+import { delete_pending_scans } from "../repositories/firestore";
+import { isAppleNearbyDevice } from "../services/scan_service";
 
-//このデータはESP32から検出するたびに送られてくる
-const SensorDataSchema = z.object({
-  sensor_id: z.string().min(1, "sensor_id is required"),
-  location: z.string().min(1, "location is required"),
-  // ble_device_count: z.number().min(0, "ble_device_count must be 0 or greater"),
-  ble_advertising_raw_data: z.array(z.string().min(1, "ble_advertising_raw_data must be a non-empty array of strings")),//esp32からのbleアドバタイジングの生データを受け取る
-  timestamp: z.string().min(1, "timestamp is required"),//esp32からのデータ送信時のタイムスタンプを受け取る
-  ble_mac_addresses: z.array(z.string().min(1, "ble_mac_addresses must be a non-empty array of strings")),//esp32からの検出されたBLEデバイスのMACアドレスの配列を受け取る
-});
+
+
 
 export const sensorRoute = new Hono();
 
 
 sensorRoute.post("/receiveSensorData", async (c) => {
-  //# ヘッダーなしで実行するとエラーになることを確認
-  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \ -H "Content-Type: application/json" \ -d "{\"sensor_id\": \"esp32_test\", \"location\": \"moscow\", \"ble_device_count\": 10}"
-  //API key確認
+  // ヘッダーなしで実行するとエラーになることを確認
+  // curl -X POST http://127.0.0.1:5001/fun-now-and-future/us-central1/receiveSensorData \
+  //   -H "Content-Type: application/json" \
+  //   -H "x-api-key: <YOUR_API_KEY>" \
+  //   -d '{"nodeId": "esp32_test", "location": "moscow", ...}'
 
-
+  // API key 確認
   const apiKey = c.req.header("x-api-key");
-  // apikeyの確認は、middleware層に分離しました。
-  // functions/middleware/sensor_aurh.tsに書いてあります。
-  // APIキーの検証のためのsensorAuthMiddleware関数を呼び出す
+
+  // APIキーの検証のための sensorAuthMiddleware 関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
-  if(authResult === 0) {
+  if (authResult === 0) {
     return c.json({
       status: "error",
       message: "Unauthorized: Invalid or missing API Key",
@@ -35,24 +40,81 @@ sensorRoute.post("/receiveSensorData", async (c) => {
   }
 
   const parseResult = SensorDataSchema.safeParse(await c.req.json());
-  if(!parseResult.success) {
+  if (!parseResult.success) {
     const errorMessage = parseResult.error.issues[0].message;
     return c.json({
       status: "error",
       message: errorMessage,
     }, 400);
   }
-  //データーベース部をリポジトリ層に分割しました。
-  //書いてあった処理は/functions/src/repositories/firestore.tsのsensordatetodb関数に書いてあります。
-  //データベースに保存する処理を呼び出す
-  const result = await sensordatetodb(parseResult);
-  const sensorData = result.sensorData;
-  const receivedAt = result.receivedAt;
-     //正しく届いたか確認
-   return c.json({
-     status: "success",
-     message: "Data received successfully",
-     received_at: receivedAt,
-     data: sensorData
-   }, 200);
+
+  // データベースに保存する処理を呼び出す
+  await savePendingScan(parseResult.data);
+
+  // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
+  // レスポンス用の received_at はハンドラ側で生成する。
+  const sensorData = parseResult.data;
+  const receivedAt = new Date().toISOString();
+
+  // 正しく届いたか確認
+  return c.json({
+    status: "success",
+    message: "Data received successfully",
+    received_at: receivedAt,
+    data: sensorData,
+  }, 200);
+});
+
+
+
+const RSSI_THRESHOLD = -100;  // 実測データの分布を確認するまではフィルタなしで運用する
+
+export const aggregateRoute = new Hono();
+
+aggregateRoute.post("/aggregate", async (c) => {
+  const now = new Date();
+  const windowStart = previousWindowStart(now);
+
+  console.info("aggregate started", {
+    startedAt: now.toISOString(),
+    windowStart: windowStart.toDate().toISOString(),
+  });
+
+  const scans = await take_out_pending_scans();
+  if (scans.length === 0) {
+    console.info("no pending scans");
+    return c.json({ windowStart: windowStart.toDate().toISOString(), scanCount: 0 });
+  }
+
+  // ノード監視は正規化前の生の件数を使うため、先に集計する
+  const healthStats = aggregateNodeHealth(scans, windowStart);
+
+  // raw / parsed を ParsedDevice に揃える
+  const normalized = scans.map(scan => ({
+    location: scan.location,
+    devices: scan.devices.map(normalizeDevice),
+    nodeId: scan.nodeId,
+  }));
+
+  const byLocation = groupByLocation(normalized);
+
+  const records = [...byLocation].map(([location, devices]) => {
+    const countable = devices.filter(isAppleNearbyDevice);
+    const unique = dedupeByMac(countable);
+    const filtered = filterByRssi(unique, RSSI_THRESHOLD);
+    return { location, uniqueDeviceCount: filtered.length };
+  });
+  await saveCongestionRecords(records, windowStart);
+  await saving_node_health_status(healthStats);
+  await delete_pending_scans();
+
+  console.info("aggregate finished", {
+    scanCount: scans.length,
+    locationCount: records.length,
+  });
+  return c.json({
+    windowStart: windowStart.toDate().toISOString(),
+    scanCount: scans.length,
+    locationCount: records.length,
+  })
 });
