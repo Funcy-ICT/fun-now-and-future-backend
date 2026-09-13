@@ -45,7 +45,7 @@ describe("GET /signage/assets", () => {
       });
     } finally {
       await db.collection("prAssets").doc(id).delete();
-    }
+    }});
 
   test("掲載期間外(publishUntilが過去)のアセットは一覧に出ない", async () => {
     const db = getFirestore();
@@ -77,4 +77,4 @@ describe("GET /signage/assets", () => {
     expect(res.status).toBe(401);
   });
   });
-})
+  
