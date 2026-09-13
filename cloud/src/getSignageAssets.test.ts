@@ -46,5 +46,31 @@ describe("GET /signage/assets", () => {
     } finally {
       await db.collection("prAssets").doc(id).delete();
     }
+
+  test("掲載期間外(publishUntilが過去)のアセットは一覧に出ない", async () => {
+    const db = getFirestore();
+    const id = "signage-asset-test-expired";
+
+    await db.collection("prAssets").doc(id).set({
+      id,
+      status: "approved",
+      title: "終了済み告知",
+      contentType: "image/jpeg",
+      size: 100,
+      publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+      publishUntil: Timestamp.fromDate(new Date("2020-02-01T00:00:00Z")),
+      createdAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+    });
+
+    try {
+      const res = await app.request("/signage/assets", {
+        headers: { "x-api-key": VALID_API_KEY },
+      });
+      const json = await res.json();
+      expect(json.assets.find((a: { id: string }) => a.id === id)).toBeUndefined();
+    } finally {
+      await db.collection("prAssets").doc(id).delete();
+    }
+  });
   });
 })
