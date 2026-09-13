@@ -72,5 +72,9 @@ describe("GET /signage/assets", () => {
       await db.collection("prAssets").doc(id).delete();
     }
   });
+  test("APIキーがない場合401を返す", async () => {
+    const res = await app.request("/signage/assets");
+    expect(res.status).toBe(401);
+  });
   });
 })
