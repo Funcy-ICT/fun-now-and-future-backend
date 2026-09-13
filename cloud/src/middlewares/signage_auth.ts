@@ -10,5 +10,5 @@ export const signageAuthMiddleware: MiddlewareHandler = async (c, next) => {
       message: "Unauthorized: Invalid or missing API Key",
     }, 401);
   }
-  await next();
-};
+  return next();
+}
