@@ -38,6 +38,7 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
 * Runtime - Node.js 24 / TypeScript
 * Framework - [`Hono`](https://hono.dev/)（`@hono/node-server`でNode.jsのHTTPサーバーとして起動）
 * Database - Firebase Firestore（`firebase-admin`経由でアクセス。Cloud Run上でもFirestore自体は独立して利用可能）
+* Object Storage - Google Cloud Storage（公開バケット。広報アセット配信用。`allUsers`に`roles/storage.legacyObjectReader`のみ付与し、一覧表示権限は与えない）
 * Validation - Zod
 * Testing - Jest / Hono `app.request`（Firestoreエミュレータを使用）
 * Deploy - Docker → Cloud Run
@@ -48,17 +49,32 @@ src/
 ├── index.ts               # エントリーポイント（serve()でサーバー起動のみ）
 ├── app.ts                 # Honoアプリの組み立て（ルーティングの登録）
 ├── controllers/           # HTTPの受け口（リクエスト検証・レスポンス整形）
-│   └── sensor.ts
-│   └── signage.ts
-├── services/              # ビジネスロジック（混雑度判定など）
-│   └── congestion.ts
+│   ├── sensor.ts          # /receiveSensorData, /aggregate
+│   └── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
+├── services/              # ビジネスロジック
+│   ├── congestion.ts      # 混雑度レベルの判定
+│   ├── scan_service.ts    # BLEスキャンデータの正規化・集計・重複排除
+│   ├── parseRawData.ts    # BLEアドバタイジング生データのパース
+│   └── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
 ├── repositories/          # Firestoreへの読み書きのみ
 │   └── firestore.ts
-├── middlewares/           # 認証など横断的な処理
-│   └── sensor_auth.ts
+├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
+│   ├── sensor_auth.ts     # ESP32 / 集計エンドポイント向けAPIキー検証
+│   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
+│   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
+├── schema/                # Zodスキーマ・型定義
+│   └── sensor_data.ts
 └── lib/
     └── firebase.ts        # Firebase Admin SDKの初期化
 ```
+
+## 環境変数
+
+| 変数名 | 用途 | 例 |
+| --- | --- | --- |
+| `PORT` | HTTPサーバーの待受ポート | `8080` |
+| `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
+| `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
 
 
 ## 主な機能・エンドポイント
@@ -116,7 +132,24 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
 ]
 ```
 
-### 3. GET /getCongestion
+### 3. POST /aggregate
+`pending_scans`に溜まったBLEスキャンデータを集計し、ロケーションごとの混雑度（`congestion_records`）とノード監視
+データ（`node_health_stats`）を書き込んで、`pending_scans`を空にする。Cloud Schedulerから5分間隔で呼び出される
+ことを想定した内部エンドポイント。
+* 認証 - **現状なし**。外部から直接呼び出せてしまうため、Cloud Scheduler以外からの呼び出しを防ぐ対策（OIDC認証
+  など）が未実装の既知の課題
+* リクエストボディ - なし
+* レスポンス例 (200 OK)
+```json
+{
+  "windowStart": "2026-07-28T07:25:00.000Z",
+  "scanCount": 12,
+  "locationCount": 2
+}
+```
+* `pending_scans`が0件の場合は`{ "windowStart": "...", "scanCount": 0 }`のみを返し、集計処理自体は行わない
+
+### 4. GET /getCongestion
 指定したロケーションの最新の混雑度データを取得します。
 * クエリパラメータ: `location`（必須）
 * レスポンス例 (200 OK)
@@ -134,7 +167,7 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
 ```
 * `congestion_level`: `low` | `medium` | `high`（`ble_device_count`が20未満/50未満/50以上で判定）
 
-### 4. GET /getCongestionHistory
+### 5. GET /getCongestionHistory
 指定したロケーションの**混雑度の履歴データ**を取得。
 * クエリパラメータ: `location`（必須）, `limit`（任意 / デフォルト50件, 最大50件）
 * レスポンス例 (200 OK)
@@ -153,6 +186,27 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
   ]
 }
 ```
+
+### 6. GET /signage/assets
+掲載中の広報アセット（画像・PDF）一覧を取得。実体は返さず、GCS公開バケット上のURLを返す。
+* 認証 - ヘッダー `x-api-key: <API_KEY>`
+* レスポンス例 (200 OK)
+```json
+{
+  "assets": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "秋のコンテスト告知",
+      "contentType": "image/jpeg",
+      "url": "https://storage.googleapis.com/<bucket>/objects/550e8400-...",
+      "publishUntil": "2026-10-31T14:59:59.000Z"
+    }
+  ]
+}
+```
+* 掲載期間内（`status: approved`かつ`publishFrom`〜`publishUntil`の範囲内、または`publishUntil`が`null`で無期限）
+  のアセットのみ返す
+* 投稿・承認の手段は未実装。確認用アセットはFirestoreコンソール・`gcloud storage cp`で手動投入する運用
 
 
 ## ロケーションIDの一覧(`location`)
