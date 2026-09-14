@@ -1,9 +1,16 @@
+import { randomUUID } from "crypto";
+import { z } from "zod";
 import { parseRawData } from "./parseRawData";
 import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
 import { ParsedSensorData } from "../schema/sensor_data";
 import { NodeStatusData } from "../repositories/firestore";
 import { Timestamp } from "firebase-admin/firestore";
+
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+export const jstWeekday = (ms: number): number =>
+  new Date(ms + JST_OFFSET_MS).getUTCDay();
 
 
 export const normalizeDevice = (device: Device): ParsedDevice => {
@@ -24,22 +31,33 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
 };
 
 
-export type UniqueDevice = {
-  mac: string;
-  rssi: number;
+export type DedupedDevice = {
+  device: ParsedDevice;
+  uuid: string;
+  count: number;
 };
 
-export const dedupeByMac = (devices: ParsedDevice[]): UniqueDevice[] => {
-  const maxRssiByMac = new Map<string, number>();
+export const dedupeByMac = (devices: ParsedDevice[]): DedupedDevice[] => {
+  const macToUuid = new Map<string, string>(); // この呼び出し(=1回の集計run)限りの対応表。実際のmacは戻り値に含めない
+  const bestByUuid = new Map<string, DedupedDevice>();
 
   for (const device of devices) {
-    const current = maxRssiByMac.get(device.mac);
-    if (current === undefined || device.rssi > current) {
-      maxRssiByMac.set(device.mac, device.rssi);
+    let uuid = macToUuid.get(device.mac);
+    if (uuid === undefined) {
+      uuid = randomUUID();
+      macToUuid.set(device.mac, uuid);
+    }
+
+    const current = bestByUuid.get(uuid);
+    if (current === undefined) {
+      bestByUuid.set(uuid, { device, uuid, count: 1 });
+    } else {
+      current.count += 1;
+      if (device.rssi > current.device.rssi) current.device = device;
     }
   }
 
-  return [...maxRssiByMac].map(([mac, rssi]) => ({ mac, rssi }));
+  return [...bestByUuid.values()];
 };
 
 export const groupByLocation = (
@@ -96,12 +114,76 @@ export const previousWindowStart = (date: Date): Timestamp => {
   return Timestamp.fromMillis(previousWindowStartMs);
 };
 
-export const isAppleNearbyDevice = (device: ParsedDevice): boolean =>
-  device.companyId === "004C" && device.isNearbyInfo;
-
 export const filterByRssi = (
-  devices: UniqueDevice[],
+  devices: ParsedDevice[],
   minRssi: number
-): UniqueDevice[] => {
+): ParsedDevice[] => {
   return devices.filter(device => device.rssi >= minRssi);
 }
+
+export const StageConfigSchema = z.discriminatedUnion("name", [
+  z.object({ name: z.literal("dedupe") }),
+  z.object({
+    name: z.literal("companyFilter"),
+    allowedCompanyIds: z.array(z.string()),
+    requireNearbyInfo: z.boolean(),
+  }),
+  z.object({
+    name: z.literal("rssiFilter"),
+    rssiThreshold: z.number(),
+  }),
+]);
+export type StageConfig = z.infer<typeof StageConfigSchema>;
+
+type StageFn = (devices: ParsedDevice[], config: StageConfig) => ParsedDevice[];
+
+export const STAGE_REGISTRY: Record<string, StageFn> = {
+  dedupe: (devices) => dedupeByMac(devices).map(d => d.device),
+
+  companyFilter: (devices, config) => {
+    if (config.name !== "companyFilter") return devices; // 型ガード。実際には呼ばれない
+    return devices.filter(d =>
+      config.allowedCompanyIds.includes(d.companyId ?? "") &&
+      (!config.requireNearbyInfo || d.isNearbyInfo)
+    );
+  },
+
+  rssiFilter: (devices, config) => {
+    if (config.name !== "rssiFilter") return devices;
+    return filterByRssi(devices, config.rssiThreshold);
+  },
+};
+
+export type StageTraceEntry = {
+  stageName: string;
+  countBefore: number;
+  countAfter: number;
+};
+
+export type PipelineResult = {
+  result: ParsedDevice[];
+  trace: StageTraceEntry[];
+  dedupeOutput?: DedupedDevice[]; // dedupe段が実行された場合のみ値が入る
+};
+
+export const runPipeline = (devices: ParsedDevice[], stages: StageConfig[]): PipelineResult => {
+  const trace: StageTraceEntry[] = [];
+  let current = devices;
+  let dedupeOutput: DedupedDevice[] | undefined;
+
+  for (const stage of stages) {
+    const before = current.length;
+
+    if (stage.name === "dedupe") {
+      const deduped = dedupeByMac(current);
+      dedupeOutput = deduped;
+      current = deduped.map(d => d.device);
+    } else {
+      current = STAGE_REGISTRY[stage.name](current, stage);
+    }
+
+    trace.push({ stageName: stage.name, countBefore: before, countAfter: current.length });
+  }
+
+  return { result: current, trace, dedupeOutput };
+};

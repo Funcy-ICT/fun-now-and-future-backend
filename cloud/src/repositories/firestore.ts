@@ -4,11 +4,24 @@ import { Timestamp } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { SensorData } from "../schema/sensor_data";
 import { SensorDataSchema } from "../schema/sensor_data";
+import { StageConfigSchema } from "../services/scan_service";
 
 export type CongestionRecordInput = {
   location: string;
+  weekday: number;
   uniqueDeviceCount: number;
 };
+
+export const CongestionRecordSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6), // JST基準
+  windowStart: z.instanceof(Timestamp),
+  uniqueDeviceCount: z.number().int().nonnegative(),
+});
+export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
+
+// Firestoreのドキュメント名に使えない文字(/ 等)がlocationに紛れても壊れないようにするための最低限の変換
+const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
@@ -26,6 +39,24 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
     ...sensorData,
     received_at: FieldValue.serverTimestamp(),
   });
+};
+
+export const LocationsConfigSchema = z.object({
+  ids: z.array(z.string().min(1)),
+});
+
+// /aggregateが対象とするlocationの一覧。スキャンデータに実際に含まれていたlocationだけを処理すると、
+// ノードが落ちて何も送ってこなかったlocationのレコードが書けないため、事前に登録された一覧を正とする
+export const getLocationIds = async (): Promise<string[]> => {
+  const doc = await db.collection("config").doc("locations").get();
+  if (!doc.exists) return [];
+
+  const parsed = LocationsConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/locations:", parsed.error.issues);
+    return [];
+  }
+  return parsed.data.ids;
 };
 
 
@@ -212,8 +243,11 @@ export const saveCongestionRecords = async (
   const collection = db.collection("congestion_records");
 
   for (const record of records) {
-    batch.set(collection.doc(), {
+    // 自動採番だと/aggregateがリトライされた際に同一(location, windowStart)が重複して書き込まれるため、決定的なIDにする
+    const docId = `${sanitizeForDocId(record.location)}__${windowStart.toMillis()}`;
+    batch.set(collection.doc(docId), {
       location: record.location,
+      weekday: record.weekday,
       windowStart,
       uniqueDeviceCount: record.uniqueDeviceCount,
     });
@@ -236,6 +270,64 @@ const PrAssetSchema = z.object({
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;
 
+
+const ScanDiagnosticsSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6),
+  windowStart: z.instanceof(Timestamp),
+  stageTrace: z.array(z.object({
+    stageName: z.string(),
+    countBefore: z.number().int().nonnegative(),
+    countAfter: z.number().int().nonnegative(),
+  })),
+  devices: z.array(z.object({
+    uuid: z.string(), // 実際のmacアドレスではない。dedupeByMacが発行する使い捨てUUID
+    rssi: z.number(),
+    companyId: z.string().nullable(),
+    isNearbyInfo: z.boolean(),
+    count: z.number().int().positive(),
+  })),
+});
+export type ScanDiagnostics = z.infer<typeof ScanDiagnosticsSchema>;
+
+export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise<void> => {
+  const result = ScanDiagnosticsSchema.safeParse(diagnostics);
+  if (!result.success) {
+    console.error("Validation failed:", result.error.issues);
+    throw new Error("Invalid data for saving scan diagnostics");
+  }
+
+  const docId = `${sanitizeForDocId(result.data.location)}__${result.data.windowStart.toMillis()}`;
+  await db.collection("scan_diagnostics").doc(docId).set(result.data);
+};
+
+const FilterPipelineConfigSchema = z.object({
+  stages: z.array(StageConfigSchema),
+  debugModeEnabled: z.boolean(),
+});
+export type FilterPipelineConfig = z.infer<typeof FilterPipelineConfigSchema>;
+
+// 読み取りに失敗した場合のフォールバック。既存の運用(companyId "004C" + isNearbyInfo必須、RSSI閾値-100、デバッグOFF)と同じ構成にする
+const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
+  stages: [
+    { name: "dedupe" },
+    { name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
+    { name: "rssiFilter", rssiThreshold: -100 },
+  ],
+  debugModeEnabled: false,
+};
+
+export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => {
+  const doc = await db.collection("config").doc("filter_pipeline").get();
+  if (!doc.exists) return DEFAULT_FILTER_PIPELINE_CONFIG;
+
+  const parsed = FilterPipelineConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
+    return DEFAULT_FILTER_PIPELINE_CONFIG;
+  }
+  return parsed.data;
+};
 
 export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
   const result: PrAsset[] = [];
