@@ -270,6 +270,36 @@ const PrAssetSchema = z.object({
 export type PrAsset = z.infer<typeof PrAssetSchema>;
 
 
+const ScanDiagnosticsSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6),
+  windowStart: z.instanceof(Timestamp),
+  stageTrace: z.array(z.object({
+    stageName: z.string(),
+    countBefore: z.number().int().nonnegative(),
+    countAfter: z.number().int().nonnegative(),
+  })),
+  devices: z.array(z.object({
+    uuid: z.string(), // 実際のmacアドレスではない。dedupeByMacが発行する使い捨てUUID
+    rssi: z.number(),
+    companyId: z.string().nullable(),
+    isNearbyInfo: z.boolean(),
+    count: z.number().int().positive(),
+  })),
+});
+export type ScanDiagnostics = z.infer<typeof ScanDiagnosticsSchema>;
+
+export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise<void> => {
+  const result = ScanDiagnosticsSchema.safeParse(diagnostics);
+  if (!result.success) {
+    console.error("Validation failed:", result.error.issues);
+    throw new Error("Invalid data for saving scan diagnostics");
+  }
+
+  const docId = `${sanitizeForDocId(result.data.location)}__${result.data.windowStart.toMillis()}`;
+  await db.collection("scan_diagnostics").doc(docId).set(result.data);
+};
+
 export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
   const result: PrAsset[] = [];
   const snapshot = await db.collection("prAssets").where("status", "==", "approved").get();
