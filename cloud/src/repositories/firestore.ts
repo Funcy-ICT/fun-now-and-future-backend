@@ -4,6 +4,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { SensorData } from "../schema/sensor_data";
 import { SensorDataSchema } from "../schema/sensor_data";
+import { StageConfigSchema } from "../services/scan_service";
 
 export type CongestionRecordInput = {
   location: string;
@@ -298,6 +299,34 @@ export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise
 
   const docId = `${sanitizeForDocId(result.data.location)}__${result.data.windowStart.toMillis()}`;
   await db.collection("scan_diagnostics").doc(docId).set(result.data);
+};
+
+const FilterPipelineConfigSchema = z.object({
+  stages: z.array(StageConfigSchema),
+  debugModeEnabled: z.boolean(),
+});
+export type FilterPipelineConfig = z.infer<typeof FilterPipelineConfigSchema>;
+
+// 読み取りに失敗した場合のフォールバック。既存の運用(companyId "004C" + isNearbyInfo必須、RSSI閾値-100、デバッグOFF)と同じ構成にする
+const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
+  stages: [
+    { name: "dedupe" },
+    { name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
+    { name: "rssiFilter", rssiThreshold: -100 },
+  ],
+  debugModeEnabled: false,
+};
+
+export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => {
+  const doc = await db.collection("config").doc("filter_pipeline").get();
+  if (!doc.exists) return DEFAULT_FILTER_PIPELINE_CONFIG;
+
+  const parsed = FilterPipelineConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
+    return DEFAULT_FILTER_PIPELINE_CONFIG;
+  }
+  return parsed.data;
 };
 
 export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
