@@ -7,8 +7,20 @@ import { SensorDataSchema } from "../schema/sensor_data";
 
 export type CongestionRecordInput = {
   location: string;
+  weekday: number;
   uniqueDeviceCount: number;
 };
+
+export const CongestionRecordSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6), // JST基準
+  windowStart: z.instanceof(Timestamp),
+  uniqueDeviceCount: z.number().int().nonnegative(),
+});
+export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
+
+// Firestoreのドキュメント名に使えない文字(/ 等)がlocationに紛れても壊れないようにするための最低限の変換
+const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
@@ -212,8 +224,11 @@ export const saveCongestionRecords = async (
   const collection = db.collection("congestion_records");
 
   for (const record of records) {
-    batch.set(collection.doc(), {
+    // 自動採番だと/aggregateがリトライされた際に同一(location, windowStart)が重複して書き込まれるため、決定的なIDにする
+    const docId = `${sanitizeForDocId(record.location)}__${windowStart.toMillis()}`;
+    batch.set(collection.doc(docId), {
       location: record.location,
+      weekday: record.weekday,
       windowStart,
       uniqueDeviceCount: record.uniqueDeviceCount,
     });
