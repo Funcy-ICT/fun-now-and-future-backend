@@ -40,6 +40,24 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
   });
 };
 
+export const LocationsConfigSchema = z.object({
+  ids: z.array(z.string().min(1)),
+});
+
+// /aggregateが対象とするlocationの一覧。スキャンデータに実際に含まれていたlocationだけを処理すると、
+// ノードが落ちて何も送ってこなかったlocationのレコードが書けないため、事前に登録された一覧を正とする
+export const getLocationIds = async (): Promise<string[]> => {
+  const doc = await db.collection("config").doc("locations").get();
+  if (!doc.exists) return [];
+
+  const parsed = LocationsConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/locations:", parsed.error.issues);
+    return [];
+  }
+  return parsed.data.ids;
+};
+
 
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
