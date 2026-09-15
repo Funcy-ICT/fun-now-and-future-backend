@@ -60,24 +60,6 @@ export const getLocationIds = async (): Promise<string[]> => {
 };
 
 
-export async function getLatestSensorData(location: string) {
-  const snapshot = await db.collection("sensorData")
-    .where("location", "==", location)
-    .orderBy("received_at", "desc")
-    .limit(1)
-    .get();
-  return snapshot;
-}
-
-export async function getSensorDataHistory(location: string, limit: number) {
-  const snapshot = await db.collection("sensorData")
-    .where("location", "==", location)
-    .orderBy("received_at", "desc")
-    .limit(limit)
-    .get();
-  return snapshot;
-}
-
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
 export interface ScanRecord {
   mac: string;
