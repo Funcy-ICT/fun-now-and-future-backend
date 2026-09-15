@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
 import { MaxDeviceData } from "../repositories/firestore";
+import { getLatestCongestionRecord } from "../repositories/firestore";
+import { getMaxDevice } from "../repositories/firestore";
 
 
 export const LocationQuerySchema = z.object({
@@ -44,26 +45,27 @@ export const congestion = async (c: any) => {
     }, 400);
   }
 
-  //ここで、リポジトリ層のgetLatestSensorData関数を呼び出して、最新のセンサーデータを取得します。
-  const snapshot = await getLatestSensorData(parseResult.data.location);
+  const record = await getLatestCongestionRecord(parseResult.data.location);
 
-  if (snapshot.empty) {
+  if (record === null) {
     return c.json({
       status: "error",
       message: "No data found",
     }, 404);
   }
 
-
-  const data = snapshot.docs[0].data();
-  const congestionInfo = calculateCongestionStatus(data.ble_device_count);
+  const isStale = Date.now() - record.windowStart.toMillis() > STALE_THRESHOLD_MS;
+  const maxDevice = await getMaxDevice(record.location, record.weekday);
+  const level = isStale ? null : toLevel(record.uniqueDeviceCount, maxDevice);
 
   return c.json({
     status: "success",
     data: {
-      ...data,
-      congestion_level: congestionInfo.level,
-      congestion_label: congestionInfo.label,
+      location: record.location,
+      windowStart: record.windowStart.toDate().toISOString(),
+      uniqueDeviceCount: record.uniqueDeviceCount,
+      level,
+      stale: isStale,
     }
   }, 200);
 }
