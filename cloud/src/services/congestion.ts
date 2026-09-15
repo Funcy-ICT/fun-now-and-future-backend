@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getLatestSensorData } from "../repositories/firestore";
 import { getSensorDataHistory } from "../repositories/firestore";
+import { MaxDeviceData } from "../repositories/firestore";
 
 
 export const LocationQuerySchema = z.object({
@@ -11,6 +12,13 @@ export const LocationQuerySchema = z.object({
 export const HistoryQuerySchema = LocationQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(50).default(50),
 });
+
+const STALE_THRESHOLD_MS = 15 * 60 * 1000; // 5分ウィンドウ3回分。ウィンドウの確定と書き込み遅延を差し引いた実効マージンは約2回分
+
+export const toLevel = (count: number, maxDevice: MaxDeviceData | null): number | null => {
+  if (maxDevice === null) return null; // 基準値が未発行。キャリブレーション中として扱う
+  return Math.min(9, Math.max(1, Math.ceil((count / maxDevice.baseline) * 9)));
+};
 
 
 export function calculateCongestionStatus(count: number): { level: string; label: string } {
