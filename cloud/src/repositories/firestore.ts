@@ -60,6 +60,23 @@ export const getLocationIds = async (): Promise<string[]> => {
 };
 
 
+export const getLatestCongestionRecord = async (location: string): Promise<CongestionRecord | null> => {
+  const snapshot = await db.collection("congestion_records")
+    .where("location", "==", location)
+    .orderBy("windowStart", "desc")
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) return null;
+
+  const parsed = CongestionRecordSchema.safeParse(snapshot.docs[0].data());
+  if (!parsed.success) {
+    console.error(`Invalid data in congestion_records document ${snapshot.docs[0].id}:`, parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
 export interface ScanRecord {
   mac: string;
