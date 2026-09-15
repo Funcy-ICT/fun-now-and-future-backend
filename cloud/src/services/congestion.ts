@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { getSensorDataHistory } from "../repositories/firestore";
 import { MaxDeviceData } from "../repositories/firestore";
 import { getLatestCongestionRecord } from "../repositories/firestore";
+import { getCongestionRecordHistory } from "../repositories/firestore";
 import { getMaxDevice } from "../repositories/firestore";
 
 
@@ -21,16 +21,6 @@ export const toLevel = (count: number, maxDevice: MaxDeviceData | null): number 
   return Math.min(9, Math.max(1, Math.ceil((count / maxDevice.baseline) * 9)));
 };
 
-
-export function calculateCongestionStatus(count: number): { level: string; label: string } {
-  if (count >= 50) {
-    return { level: "high", label: "混雑" };
-  } else if (count >= 20) {
-    return { level: "medium", label: "やや混雑" };
-  } else {
-    return { level: "low", label: "空いている" };
-  }
-}
 
 export const congestionRoute = new Hono();
 
@@ -80,28 +70,29 @@ export const congestion_history = async (c: any) => {
     }, 400);
   }
 
+  const records = await getCongestionRecordHistory(parseResult.data.location, parseResult.data.limit);
 
-
-  //ここで、リポジトリ層のgetSensorDataHistory関数を呼び出して、指定された場所のセンサーデータ履歴を取得します。
-  const snapshot = await getSensorDataHistory(parseResult.data.location, parseResult.data.limit);
-
-  if (snapshot.empty) {
+  if (records.length === 0) {
     return c.json({
       status: "error",
       message: "No history data found",
     }, 404);
   }
 
-  const history = snapshot.docs.map((doc: any) => {
-    const data = doc.data();
-    const congestionInfo = calculateCongestionStatus(data.ble_device_count);
-    return {
-      ...data,
-      congestion_level: congestionInfo.level,
-      congestion_label: congestionInfo.label,
-    };
+  // 履歴が複数曜日にまたがる場合に備えて、必要になったweekdayのmax_devicesだけをキャッシュする
+  const maxDeviceCache = new Map<number, MaxDeviceData | null>();
+  const history = [];
+  for (const record of records) {
+    if (!maxDeviceCache.has(record.weekday)) {
+      maxDeviceCache.set(record.weekday, await getMaxDevice(record.location, record.weekday));
+    }
+    history.push({
+      location: record.location,
+      windowStart: record.windowStart.toDate().toISOString(),
+      uniqueDeviceCount: record.uniqueDeviceCount,
+      level: toLevel(record.uniqueDeviceCount, maxDeviceCache.get(record.weekday)!),
+    });
   }
-  );
 
   return c.json({
     status: "success",
