@@ -166,36 +166,6 @@ export const delete_pending_scans = async (): Promise<void> => {
 }
 
 
-const MaxDeviceSchema = z.object({
-  location: z.string().min(1, "location is required"),
-  weekday: z.number().min(0).max(6, "weekday must be between 0 and 6"),
-  maxDevices: z.number().min(1, "maxDevices must be at least 1"),
-  updated_at: z.string().min(1, "updated_at is required"),
-});
-
-export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
-
-export const saving_max_devices = async (location: string, weekday: number, maxDevice: number): Promise<void> => {
-  const result = MaxDeviceSchema.safeParse({
-    location,
-    weekday,
-    maxDevices: maxDevice,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (!result.success) {
-    console.error("Validation failed:", result.error.issues);
-    throw new Error("Invalid data for saving max devices");
-  }
-
-  await db
-    .collection("max_devices")
-    .doc(`${result.data.location}_${result.data.weekday}`)
-    .set(
-      result.data
-    );
-};
-
 
 // 自動採番を行うための関数
 export async function getNextSequenceNumber(
