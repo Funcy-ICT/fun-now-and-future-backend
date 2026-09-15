@@ -77,6 +77,25 @@ export const getLatestCongestionRecord = async (location: string): Promise<Conge
   return parsed.data;
 };
 
+export const getCongestionRecordHistory = async (location: string, limit: number): Promise<CongestionRecord[]> => {
+  const snapshot = await db.collection("congestion_records")
+    .where("location", "==", location)
+    .orderBy("windowStart", "desc")
+    .limit(limit)
+    .get();
+
+  const result: CongestionRecord[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = CongestionRecordSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in congestion_records document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
+
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
 export interface ScanRecord {
   mac: string;
