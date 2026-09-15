@@ -165,6 +165,36 @@ export const delete_pending_scans = async (): Promise<void> => {
   console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
 
+export const MaxDeviceSchema = z.object({
+  location: z.string().min(1, "location is required"),
+  weekday: z.number().int().min(0).max(6, "weekday must be between 0 and 6"),
+  baseline: z.number().min(9, "baseline must be at least 9"), // 9段階のlevelが成立する最小値
+  percentile: z.number(),
+  p50: z.number(),
+  p05: z.number(),
+  windowStartHour: z.number().int(),
+  windowEndHour: z.number().int(),
+  sampleDays: z.number().int().positive(),
+  sampleCount: z.number().int().positive(),
+  lookbackWeeks: z.number().int().positive(),
+  oldestSampleDate: z.string(),
+  refMedian: z.number(),
+  computedAt: z.instanceof(Timestamp),
+});
+
+export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
+
+export const getMaxDevice = async (location: string, weekday: number): Promise<MaxDeviceData | null> => {
+  const doc = await db.collection("max_devices").doc(`${location}_${weekday}`).get();
+  if (!doc.exists) return null;
+
+  const parsed = MaxDeviceSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error(`Invalid data in max_devices document ${doc.id}:`, parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
 
 
 // 自動採番を行うための関数
