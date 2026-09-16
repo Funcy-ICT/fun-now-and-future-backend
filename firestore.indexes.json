@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "congestion_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "location", "order": "ASCENDING" },
+        { "fieldPath": "weekday", "order": "ASCENDING" },
+        { "fieldPath": "windowStart", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}
