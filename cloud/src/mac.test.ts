@@ -1,4 +1,4 @@
-import { normalizeMac, isValidMac, hashMac } from "./services/mac";
+import { normalizeMac, isValidMac, hashMac, inferAddressType } from "./services/mac";
 
 describe("normalizeMac", () => {
 	test("区切り文字と大文字小文字の違いを吸収して、同じ値になる", () => {
@@ -49,5 +49,31 @@ describe("hashMac", () => {
 		const hash = hashMac("AA:BB:CC:DD:EE:01", key);
 		expect(hash).toMatch(/^[0-9A-F]{64}$/);
 		expect(hash).not.toContain("AABBCCDDEE01");
+	});
+});
+
+describe("inferAddressType", () => {
+	test("最上位2ビットが11なら静的ランダム", () => {
+		expect(inferAddressType("C0:00:00:00:00:01")).toBe("random_static");
+		expect(inferAddressType("FF:BB:CC:DD:EE:01")).toBe("random_static");
+	});
+
+	test("最上位2ビットが01ならRPA", () => {
+		expect(inferAddressType("40:00:00:00:00:01")).toBe("random_resolvable");
+		expect(inferAddressType("7f:bb:cc:dd:ee:01")).toBe("random_resolvable");
+	});
+
+	test("最上位2ビットが00ならNRPA", () => {
+		expect(inferAddressType("00:11:22:33:44:55")).toBe("random_non_resolvable");
+		expect(inferAddressType("3F:BB:CC:DD:EE:01")).toBe("random_non_resolvable");
+	});
+
+	test("最上位2ビットが10なら仕様上使われないのでnull", () => {
+		expect(inferAddressType("80:00:00:00:00:01")).toBeNull();
+		expect(inferAddressType("BF:BB:CC:DD:EE:01")).toBeNull();
+	});
+
+	test("区切り文字がなくても判定できる", () => {
+		expect(inferAddressType("c00000000001")).toBe("random_static");
 	});
 });
