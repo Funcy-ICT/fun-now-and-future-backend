@@ -10,7 +10,6 @@ import {
   delete_pending_scans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
-  getLocationIds,
   CongestionRecordInput,
 } from "../repositories/firestore";
 
@@ -74,12 +73,10 @@ aggregateRoute.post("/aggregate", async (c) => {
   const windowStart = previousWindowStart(now);
   const weekday = jstWeekday(windowStart.toMillis());
   const config = await getFilterPipelineConfig();
-  const locationIds = await getLocationIds();
 
   console.info("aggregate started", {
     startedAt: now.toISOString(),
     windowStart: windowStart.toDate().toISOString(),
-    locationCount: locationIds.length,
   });
 
   const scans = await take_out_pending_scans();
@@ -98,20 +95,13 @@ aggregateRoute.post("/aggregate", async (c) => {
 
   const records: CongestionRecordInput[] = [];
 
-  // config/locationsに登録されている全location分を必ず処理する。byLocationのキーだけを見ると、
-  // ノードが落ちて何も送ってこなかったlocationのレコードが書けなくなるため
-  for (const location of locationIds) {
-    const devices = byLocation.get(location) ?? [];
-
-    if (devices.length === 0) {
-      records.push({ location, weekday, uniqueDeviceCount: 0 });
-      continue;
-    }
-
+  // ESP32は検出0件でもdevices: []でPOSTしてくる前提。空配列でもrunPipelineは自然に
+  // uniqueDeviceCount: 0の結果を返すため、byLocationに出てきたlocationだけを処理すればよい
+  for (const [location, devices] of byLocation) {
     const { result, trace, dedupeOutput } = runPipeline(devices, config.stages);
     records.push({ location, weekday, uniqueDeviceCount: result.length });
 
-    if (config.debugModeEnabled && dedupeOutput) {
+    if (config.debugModeEnabled && dedupeOutput && devices.length > 0) {
       await saveScanDiagnostics({
         location,
         weekday,
