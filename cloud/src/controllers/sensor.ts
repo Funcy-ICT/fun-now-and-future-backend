@@ -1,18 +1,17 @@
 import { Hono } from "hono";
 import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
-import { normalizeDevice } from "../services/scan_service";
+import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
-import { previousWindowStart } from "../services/scan_service";
-import { take_out_pending_scans } from "../repositories/firestore";
-import { aggregateNodeHealth } from "../services/scan_service";
-import { groupByLocation } from "../services/scan_service";
-import { dedupeByMac } from "../services/scan_service";
-import { filterByRssi } from "../services/scan_service";
-import { saveCongestionRecords } from "../repositories/firestore";
-import { saving_node_health_status } from "../repositories/firestore";
-import { delete_pending_scans } from "../repositories/firestore";
-import { isAppleNearbyDevice } from "../services/scan_service";
+import {
+  take_out_pending_scans,
+  saveCongestionRecords,
+  saving_node_health_status,
+  delete_pending_scans,
+  saveScanDiagnostics,
+  getFilterPipelineConfig,
+  CongestionRecordInput,
+} from "../repositories/firestore";
 
 
 
@@ -67,13 +66,13 @@ sensorRoute.post("/receiveSensorData", async (c) => {
 
 
 
-const RSSI_THRESHOLD = -100;  // 実測データの分布を確認するまではフィルタなしで運用する
-
 export const aggregateRoute = new Hono();
 
 aggregateRoute.post("/aggregate", async (c) => {
   const now = new Date();
   const windowStart = previousWindowStart(now);
+  const weekday = jstWeekday(windowStart.toMillis());
+  const config = await getFilterPipelineConfig();
 
   console.info("aggregate started", {
     startedAt: now.toISOString(),
@@ -81,13 +80,9 @@ aggregateRoute.post("/aggregate", async (c) => {
   });
 
   const scans = await take_out_pending_scans();
-  if (scans.length === 0) {
-    console.info("no pending scans");
-    return c.json({ windowStart: windowStart.toDate().toISOString(), scanCount: 0 });
-  }
 
   // ノード監視は正規化前の生の件数を使うため、先に集計する
-  const healthStats = aggregateNodeHealth(scans, windowStart);
+  const healthStats = scans.length > 0 ? aggregateNodeHealth(scans, windowStart) : [];
 
   // raw / parsed を ParsedDevice に揃える
   const normalized = scans.map(scan => ({
@@ -98,12 +93,31 @@ aggregateRoute.post("/aggregate", async (c) => {
 
   const byLocation = groupByLocation(normalized);
 
-  const records = [...byLocation].map(([location, devices]) => {
-    const countable = devices.filter(isAppleNearbyDevice);
-    const unique = dedupeByMac(countable);
-    const filtered = filterByRssi(unique, RSSI_THRESHOLD);
-    return { location, uniqueDeviceCount: filtered.length };
-  });
+  const records: CongestionRecordInput[] = [];
+
+  // ESP32は検出0件でもdevices: []でPOSTしてくる前提。空配列でもrunPipelineは自然に
+  // uniqueDeviceCount: 0の結果を返すため、byLocationに出てきたlocationだけを処理すればよい
+  for (const [location, devices] of byLocation) {
+    const { result, trace, dedupeOutput } = runPipeline(devices, config.stages);
+    records.push({ location, weekday, uniqueDeviceCount: result.length });
+
+    if (config.debugModeEnabled && dedupeOutput && devices.length > 0) {
+      await saveScanDiagnostics({
+        location,
+        weekday,
+        windowStart,
+        stageTrace: trace,
+        devices: dedupeOutput.map(d => ({
+          uuid: d.uuid,
+          rssi: d.device.rssi,
+          companyId: d.device.companyId,
+          isNearbyInfo: d.device.isNearbyInfo,
+          count: d.count,
+        })),
+      });
+    }
+  }
+
   await saveCongestionRecords(records, windowStart);
   await saving_node_health_status(healthStats);
   await delete_pending_scans();

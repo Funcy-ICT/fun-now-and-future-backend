@@ -4,11 +4,24 @@ import { Timestamp } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { SensorData } from "../schema/sensor_data";
 import { SensorDataSchema } from "../schema/sensor_data";
+import { StageConfigSchema } from "../services/scan_service";
 
 export type CongestionRecordInput = {
   location: string;
+  weekday: number;
   uniqueDeviceCount: number;
 };
+
+export const CongestionRecordSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6), // JST基準
+  windowStart: z.instanceof(Timestamp),
+  uniqueDeviceCount: z.number().int().nonnegative(),
+});
+export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
+
+// Firestoreのドキュメント名に使えない文字(/ 等)がlocationに紛れても壊れないようにするための最低限の変換
+const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
 // ESP32からのデータを受け取り、Firestoreに保存する関数
@@ -28,7 +41,6 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
   });
 };
 
-
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
@@ -38,14 +50,60 @@ export async function getLatestSensorData(location: string) {
   return snapshot;
 }
 
-export async function getSensorDataHistory(location: string, limit: number) {
-  const snapshot = await db.collection("sensorData")
+export const LocationsConfigSchema = z.object({
+  ids: z.array(z.string().min(1)),
+});
+
+// /aggregateが対象とするlocationの一覧。スキャンデータに実際に含まれていたlocationだけを処理すると、
+// ノードが落ちて何も送ってこなかったlocationのレコードが書けないため、事前に登録された一覧を正とする
+export const getLocationIds = async (): Promise<string[]> => {
+  const doc = await db.collection("config").doc("locations").get();
+  if (!doc.exists) return [];
+
+  const parsed = LocationsConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/locations:", parsed.error.issues);
+    return [];
+  }
+  return parsed.data.ids;
+};
+
+
+export const getLatestCongestionRecord = async (location: string): Promise<CongestionRecord | null> => {
+  const snapshot = await db.collection("congestion_records")
     .where("location", "==", location)
-    .orderBy("received_at", "desc")
+    .orderBy("windowStart", "desc")
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) return null;
+
+  const parsed = CongestionRecordSchema.safeParse(snapshot.docs[0].data());
+  if (!parsed.success) {
+    console.error(`Invalid data in congestion_records document ${snapshot.docs[0].id}:`, parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
+export const getCongestionRecordHistory = async (location: string, limit: number): Promise<CongestionRecord[]> => {
+  const snapshot = await db.collection("congestion_records")
+    .where("location", "==", location)
+    .orderBy("windowStart", "desc")
     .limit(limit)
     .get();
-  return snapshot;
-}
+
+  const result: CongestionRecord[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = CongestionRecordSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in congestion_records document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
 
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
 export interface ScanRecord {
@@ -116,35 +174,35 @@ export const delete_pending_scans = async (): Promise<void> => {
   console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
 
-
-const MaxDeviceSchema = z.object({
+export const MaxDeviceSchema = z.object({
   location: z.string().min(1, "location is required"),
-  weekday: z.number().min(0).max(6, "weekday must be between 0 and 6"),
-  maxDevices: z.number().min(1, "maxDevices must be at least 1"),
-  updated_at: z.string().min(1, "updated_at is required"),
+  weekday: z.number().int().min(0).max(6, "weekday must be between 0 and 6"),
+  baseline: z.number().min(9, "baseline must be at least 9"), // 9段階のlevelが成立する最小値
+  percentile: z.number(),
+  p50: z.number(),
+  p05: z.number(),
+  windowStartHour: z.number().int(),
+  windowEndHour: z.number().int(),
+  sampleDays: z.number().int().positive(),
+  sampleCount: z.number().int().positive(),
+  lookbackWeeks: z.number().int().positive(),
+  oldestSampleDate: z.string(),
+  refMedian: z.number(),
+  computedAt: z.instanceof(Timestamp),
 });
 
 export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
 
-export const saving_max_devices = async (location: string, weekday: number, maxDevice: number): Promise<void> => {
-  const result = MaxDeviceSchema.safeParse({
-    location,
-    weekday,
-    maxDevices: maxDevice,
-    updated_at: new Date().toISOString(),
-  });
+export const getMaxDevice = async (location: string, weekday: number): Promise<MaxDeviceData | null> => {
+  const doc = await db.collection("max_devices").doc(`${location}_${weekday}`).get();
+  if (!doc.exists) return null;
 
-  if (!result.success) {
-    console.error("Validation failed:", result.error.issues);
-    throw new Error("Invalid data for saving max devices");
+  const parsed = MaxDeviceSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error(`Invalid data in max_devices document ${doc.id}:`, parsed.error.issues);
+    return null;
   }
-
-  await db
-    .collection("max_devices")
-    .doc(`${result.data.location}_${result.data.weekday}`)
-    .set(
-      result.data
-    );
+  return parsed.data;
 };
 
 
@@ -212,12 +270,103 @@ export const saveCongestionRecords = async (
   const collection = db.collection("congestion_records");
 
   for (const record of records) {
-    batch.set(collection.doc(), {
+    // 自動採番だと/aggregateがリトライされた際に同一(location, windowStart)が重複して書き込まれるため、決定的なIDにする
+    const docId = `${sanitizeForDocId(record.location)}__${windowStart.toMillis()}`;
+    batch.set(collection.doc(docId), {
       location: record.location,
+      weekday: record.weekday,
       windowStart,
       uniqueDeviceCount: record.uniqueDeviceCount,
     });
   }
 
   await batch.commit();
+};
+
+const PrAssetSchema = z.object({
+  id: z.string().min(1, "id is required"),
+  // 後続フェーズ（投稿・承認フロー）の値も含めて定義しておく。今回読むのはapprovedのみ。
+  status: z.enum(["pending", "approved", "rejected", "revoked"]),
+  title: z.string().min(1, "title is required"),
+  contentType: z.string().min(1, "contentType is required"),
+  size: z.number().min(0, "size must be 0 or greater"),
+  publishFrom: z.instanceof(Timestamp),
+  publishUntil: z.instanceof(Timestamp).nullable(),
+  createdAt: z.instanceof(Timestamp),
+});
+
+export type PrAsset = z.infer<typeof PrAssetSchema>;
+
+
+const ScanDiagnosticsSchema = z.object({
+  location: z.string().min(1),
+  weekday: z.number().int().min(0).max(6),
+  windowStart: z.instanceof(Timestamp),
+  stageTrace: z.array(z.object({
+    stageName: z.string(),
+    countBefore: z.number().int().nonnegative(),
+    countAfter: z.number().int().nonnegative(),
+  })),
+  devices: z.array(z.object({
+    uuid: z.string(), // 実際のmacアドレスではない。dedupeByMacが発行する使い捨てUUID
+    rssi: z.number(),
+    companyId: z.string().nullable(),
+    isNearbyInfo: z.boolean(),
+    count: z.number().int().positive(),
+  })),
+});
+export type ScanDiagnostics = z.infer<typeof ScanDiagnosticsSchema>;
+
+export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise<void> => {
+  const result = ScanDiagnosticsSchema.safeParse(diagnostics);
+  if (!result.success) {
+    console.error("Validation failed:", result.error.issues);
+    throw new Error("Invalid data for saving scan diagnostics");
+  }
+
+  const docId = `${sanitizeForDocId(result.data.location)}__${result.data.windowStart.toMillis()}`;
+  await db.collection("scan_diagnostics").doc(docId).set(result.data);
+};
+
+const FilterPipelineConfigSchema = z.object({
+  stages: z.array(StageConfigSchema),
+  debugModeEnabled: z.boolean(),
+});
+export type FilterPipelineConfig = z.infer<typeof FilterPipelineConfigSchema>;
+
+// 読み取りに失敗した場合のフォールバック。既存の運用(companyId "004C" + isNearbyInfo必須、RSSI閾値-100、デバッグOFF)と同じ構成にする
+const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
+  stages: [
+    { name: "dedupe" },
+    { name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
+    { name: "rssiFilter", rssiThreshold: -100 },
+  ],
+  debugModeEnabled: false,
+};
+
+export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => {
+  const doc = await db.collection("config").doc("filter_pipeline").get();
+  if (!doc.exists) return DEFAULT_FILTER_PIPELINE_CONFIG;
+
+  const parsed = FilterPipelineConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
+    return DEFAULT_FILTER_PIPELINE_CONFIG;
+  }
+  return parsed.data;
+};
+
+export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
+  const result: PrAsset[] = [];
+  const snapshot = await db.collection("prAssets").where("status", "==", "approved").get();
+
+  for (const doc of snapshot.docs) {
+    const parsed = PrAssetSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in prAssets document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
 };
