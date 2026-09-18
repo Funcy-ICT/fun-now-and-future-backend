@@ -1,0 +1,21 @@
+[
+  { "name": "sendId", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "nodeId", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "location", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "receivedAt", "type": "TIMESTAMP", "mode": "REQUIRED" },
+  { "name": "hashKeyVersion", "type": "STRING", "mode": "REQUIRED" },
+  {
+    "name": "devices",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "fields": [
+      { "name": "macHash", "type": "STRING", "mode": "REQUIRED" },
+      { "name": "rssi", "type": "INT64", "mode": "REQUIRED" },
+      { "name": "format", "type": "STRING", "mode": "REQUIRED" },
+      { "name": "rawData", "type": "STRING", "mode": "NULLABLE" },
+      { "name": "companyId", "type": "STRING", "mode": "NULLABLE" },
+      { "name": "isNearbyInfo", "type": "BOOL", "mode": "NULLABLE" },
+      { "name": "addressType", "type": "STRING", "mode": "NULLABLE" }
+    ]
+  }
+]
