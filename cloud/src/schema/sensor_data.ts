@@ -25,7 +25,7 @@ export const SensorDataSchema = z.object({
   sendId: z.string().min(1, "sendId must not be empty").max(64, "sendId must be 64 characters or fewer").optional(),
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  devices: z.array(devicesSchema).default([]),
+  devices: z.array(devicesSchema).max(256, "devices must be 256 or fewer").default([]),
 });
 
 export const ParsedSensorDataSchema = z.object({
