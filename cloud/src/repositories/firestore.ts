@@ -43,6 +43,13 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
 
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
+    .where("location", "==", location)
+    .orderBy("received_at", "desc")
+    .limit(1)
+    .get();
+  return snapshot;
+}
+
 export const LocationsConfigSchema = z.object({
   ids: z.array(z.string().min(1)),
 });
