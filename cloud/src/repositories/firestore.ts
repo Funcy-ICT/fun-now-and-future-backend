@@ -43,21 +43,60 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
 
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
+export const LocationsConfigSchema = z.object({
+  ids: z.array(z.string().min(1)),
+});
+
+// /aggregateが対象とするlocationの一覧。スキャンデータに実際に含まれていたlocationだけを処理すると、
+// ノードが落ちて何も送ってこなかったlocationのレコードが書けないため、事前に登録された一覧を正とする
+export const getLocationIds = async (): Promise<string[]> => {
+  const doc = await db.collection("config").doc("locations").get();
+  if (!doc.exists) return [];
+
+  const parsed = LocationsConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/locations:", parsed.error.issues);
+    return [];
+  }
+  return parsed.data.ids;
+};
+
+
+export const getLatestCongestionRecord = async (location: string): Promise<CongestionRecord | null> => {
+  const snapshot = await db.collection("congestion_records")
     .where("location", "==", location)
-    .orderBy("received_at", "desc")
+    .orderBy("windowStart", "desc")
     .limit(1)
     .get();
-  return snapshot;
-}
 
-export async function getSensorDataHistory(location: string, limit: number) {
-  const snapshot = await db.collection("sensorData")
+  if (snapshot.empty) return null;
+
+  const parsed = CongestionRecordSchema.safeParse(snapshot.docs[0].data());
+  if (!parsed.success) {
+    console.error(`Invalid data in congestion_records document ${snapshot.docs[0].id}:`, parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
+export const getCongestionRecordHistory = async (location: string, limit: number): Promise<CongestionRecord[]> => {
+  const snapshot = await db.collection("congestion_records")
     .where("location", "==", location)
-    .orderBy("received_at", "desc")
+    .orderBy("windowStart", "desc")
     .limit(limit)
     .get();
-  return snapshot;
-}
+
+  const result: CongestionRecord[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = CongestionRecordSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in congestion_records document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
 
 // 過去の指定した時間のデータを取得する際に、必要な戻り値, 型を定義する
 export interface ScanRecord {
@@ -128,35 +167,35 @@ export const delete_pending_scans = async (): Promise<void> => {
   console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
 
-
-const MaxDeviceSchema = z.object({
+export const MaxDeviceSchema = z.object({
   location: z.string().min(1, "location is required"),
-  weekday: z.number().min(0).max(6, "weekday must be between 0 and 6"),
-  maxDevices: z.number().min(1, "maxDevices must be at least 1"),
-  updated_at: z.string().min(1, "updated_at is required"),
+  weekday: z.number().int().min(0).max(6, "weekday must be between 0 and 6"),
+  baseline: z.number().min(9, "baseline must be at least 9"), // 9段階のlevelが成立する最小値
+  percentile: z.number(),
+  p50: z.number(),
+  p05: z.number(),
+  windowStartHour: z.number().int(),
+  windowEndHour: z.number().int(),
+  sampleDays: z.number().int().positive(),
+  sampleCount: z.number().int().positive(),
+  lookbackWeeks: z.number().int().positive(),
+  oldestSampleDate: z.string(),
+  refMedian: z.number(),
+  computedAt: z.instanceof(Timestamp),
 });
 
 export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
 
-export const saving_max_devices = async (location: string, weekday: number, maxDevice: number): Promise<void> => {
-  const result = MaxDeviceSchema.safeParse({
-    location,
-    weekday,
-    maxDevices: maxDevice,
-    updated_at: new Date().toISOString(),
-  });
+export const getMaxDevice = async (location: string, weekday: number): Promise<MaxDeviceData | null> => {
+  const doc = await db.collection("max_devices").doc(`${location}_${weekday}`).get();
+  if (!doc.exists) return null;
 
-  if (!result.success) {
-    console.error("Validation failed:", result.error.issues);
-    throw new Error("Invalid data for saving max devices");
+  const parsed = MaxDeviceSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error(`Invalid data in max_devices document ${doc.id}:`, parsed.error.issues);
+    return null;
   }
-
-  await db
-    .collection("max_devices")
-    .doc(`${result.data.location}_${result.data.weekday}`)
-    .set(
-      result.data
-    );
+  return parsed.data;
 };
 
 
