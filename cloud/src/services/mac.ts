@@ -7,3 +7,13 @@ export const normalizeMac = (mac: string): string => {
   }
   return hex;
 };
+
+// スキーマの検証後、ハッシュ化の前に呼ぶ。不正なmacが1つでもあれば、受信を400で返すために使う。
+export const isValidMac = (mac: string): boolean => {
+  try {
+    normalizeMac(mac);
+    return true;
+  } catch {
+    return false;
+  }
+};
