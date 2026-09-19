@@ -4,6 +4,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { SensorData } from "../schema/sensor_data";
 import { SensorDataSchema } from "../schema/sensor_data";
+import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
 
 export type CongestionRecordInput = {
@@ -38,6 +39,27 @@ export const savePendingScan = async (sensorData: SensorData): Promise<void> => 
   await db.collection("pending_scans").add({
     ...sensorData,
     received_at: FieldValue.serverTimestamp(),
+  });
+};
+
+// Pub/Subのメッセージ(ScanEvent)をpending_scansに保存した形。受信時刻はTimestampにして、窓の範囲で検索できるようにする。
+export const PendingScanEventSchema = ScanEventSchema.omit({ receivedAt: true }).extend({
+  received_at: z.instanceof(Timestamp),
+});
+export type PendingScanEvent = z.infer<typeof PendingScanEventSchema>;
+
+// 同じメッセージが2回届いても、同じドキュメントに上書きされて二重に数えないよう、IDをメッセージから決める。
+// sendIdがあればnodeIdと組にする。無ければpub/subのmessageIdを使う(esp32の再送は防げないが、pub/subの再配信は防げる)。
+export const pendingScanDocId = (event: ScanEvent, messageId: string): string =>
+  event.sendId !== null
+    ? `${sanitizeForDocId(event.nodeId)}__${sanitizeForDocId(event.sendId)}`
+    : `msg__${sanitizeForDocId(messageId)}`;
+
+export const savePendingScanEvent = async (event: ScanEvent, messageId: string): Promise<void> => {
+  const { receivedAt, ...rest } = event;
+  await db.collection("pending_scans").doc(pendingScanDocId(event, messageId)).set({
+    ...rest,
+    received_at: Timestamp.fromDate(new Date(receivedAt)),
   });
 };
 
