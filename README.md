@@ -113,7 +113,15 @@ src/
 
 ### 2. POST /receiveSensorData
 ESP32（センサー端末）から BLE 検知データを受信し、Firestore に保存。
+macアドレスは受信の時点でハッシュ化（HMAC-SHA256）し、Firestoreにもハッシュ化した値だけを保存する。
+併せて、ハッシュ化した検出データ（rawの場合はパース結果と`rawData`も含む）をPub/Subのトピックにpublishする（BigQueryへの蓄積用）。
+publishに失敗しても、Firestoreへの保存が入口の間は200を返し、ログに残す。
 * 認証 - ヘッダー `x-api-key: <API_KEY>`
+* 受け付ける値
+  * `sendId`（任意） - 送信ごとのUUID。再送のときは同じ値を使う。64文字以下
+  * `mac` - 区切り文字と大文字小文字は問わない。12桁の16進数でなければ400（`mac is invalid`）
+  * `rssi` - -127から20まで。範囲外が1台でも含まれると400になり、そのPOST全体が捨てられる
+  * `devices` - 256件まで。0件でもよい
 * リクエストボディ
 - rawDataを送る場合（Wi-Fi環境を想定, クラウドで詳細にパースし分析可能）
 ```json
@@ -135,26 +143,16 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
 ]
 ```
 
-* レスポンス例 (200 OK)
-- rawDataを送る場合（Wi-Fi環境を想定, クラウドで詳細にパースし分析可能）
+* レスポンス例 (200 OK)。受信したデータの写しは返さない。ESP32の送受信の時間を短くするため
 ```json
-"nodeId": "esp32_cafeteria_01",
-"location": "cafeteria",
-"devices": [
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605fffffff"}
-]
+{
+  "status": "success",
+  "message": "Data received successfully",
+  "received_at": "2026-09-20T12:00:00.000Z",
+  "sendId": null
+}
 ```
-
-- パース済みデータを送る場合
-```json
-"nodeId": "esp32_cafeteria_01",
-"location": "cafeteria",
-"devices": [
-	{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:01", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }
-  { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "00E0", "isNearbyInfo": false }
-]
-```
+`sendId`は、リクエストで送られてきた値。無ければ`null`。
 
 ### 3. POST /aggregate
 `pending_scans`に溜まったBLEスキャンデータを集計し、ロケーションごとの混雑度（`congestion_records`）とノード監視
