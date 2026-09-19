@@ -57,18 +57,26 @@ src/
 │   ├── scan_service.ts    # BLEスキャンデータの正規化・集計・重複排除
 │   ├── parseRawData.ts    # BLEアドバタイジング生データのパース
 │   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
+│   ├── mac.ts             # macアドレスの正規化・ハッシュ化(HMAC-SHA256)・アドレス種別の推定
+│   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
 │   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
-├── repositories/          # Firestoreへの読み書きのみ
-│   └── firestore.ts
+├── repositories/          # Firestore, Pub/Subへの読み書きのみ
+│   ├── firestore.ts
+│   └── pubsub.ts          # メッセージをPub/Subのトピックにpublish
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
 │   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
 │   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
 ├── schema/                # Zodスキーマ・型定義
-│   └── sensor_data.ts
+│   ├── sensor_data.ts
+│   └── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
 └── lib/
-    └── firebase.ts        # Firebase Admin SDKの初期化
+    ├── firebase.ts        # Firebase Admin SDKの初期化
+    ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
+    └── pubsub.ts          # Pub/Subクライアントの初期化
 ```
+
+`cloud/bigquery/scan_events.schema.json`は、BigQueryのテーブル`scan_events`の列の定義。`ScanEventSchema`との突き合わせテストで使う。
 
 ## 環境変数
 
@@ -77,6 +85,8 @@ src/
 | `PORT` | HTTPサーバーの待受ポート | `8080` |
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
+| `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
+| `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。未設定ならpublishしない（GCPの準備前でもデプロイできる） | `scan-events` |
 
 ## Firestore設定ドキュメント
 
