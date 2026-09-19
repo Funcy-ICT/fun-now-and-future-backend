@@ -26,14 +26,8 @@ describe("receiveSensorData", () => {
 
 		const json = await res.json();
 		expect(json.status).toBe("success");
-		expect(json.data).toEqual({
-			"nodeId": "node-01",
-			"location": "london",
-			"devices": [
-				{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" },
-				{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }// 元は { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "004C", "nearbyInfo": "10" } だったが、isNearbyInfoに変更
-			]
-		});
+		expect(json.data).toBeUndefined(); // 受信したデータは返さない
+		expect(json.sendId).toBeNull();
 	});
 
 	test("API Keyがない場合401を返す", async () => {

@@ -87,7 +87,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     status: "success",
     message: "Data received successfully",
     received_at: receivedAt.toISOString(),
-    data: sensorData,
+    sendId: sensorData.sendId ?? null,
   }, 200);
 });
 
