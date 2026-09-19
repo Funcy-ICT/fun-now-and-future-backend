@@ -3,6 +3,7 @@ import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
+import { isValidMac } from "../services/mac";
 import {
   take_out_pending_scans,
   saveCongestionRecords,
@@ -47,12 +48,21 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
+  const sensorData = parseResult.data;
+
+  // ハッシュ化する前に、macの書式を確認する。不正なmacが1つでも含まれていれば、そのPOSTは受け付けない
+  if (!sensorData.devices.every(device => isValidMac(device.mac))) {
+    return c.json({
+      status: "error",
+      message: "mac is invalid",
+    }, 400);
+  }
+
   // データベースに保存する処理を呼び出す
-  await savePendingScan(parseResult.data);
+  await savePendingScan(sensorData);
 
   // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
   // レスポンス用の received_at はハンドラ側で生成する。
-  const sensorData = parseResult.data;
   const receivedAt = new Date().toISOString();
 
   // 正しく届いたか確認
