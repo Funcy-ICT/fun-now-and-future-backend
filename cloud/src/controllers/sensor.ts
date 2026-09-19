@@ -3,7 +3,8 @@ import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
-import { isValidMac } from "../services/mac";
+import { isValidMac, hashMac } from "../services/mac";
+import { getHashKey } from "../lib/hash_key";
 import {
   take_out_pending_scans,
   saveCongestionRecords,
@@ -58,8 +59,14 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
+  // firestoreにも生のmacを残さない。ハッシュ化した値でも、/aggregateの重複排除はmacの文字列をキーにするだけなのでそのまま動く
+  const key = getHashKey();
+
   // データベースに保存する処理を呼び出す
-  await savePendingScan(sensorData);
+  await savePendingScan({
+    ...sensorData,
+    devices: sensorData.devices.map(device => ({ ...device, mac: hashMac(device.mac, key) })),
+  });
 
   // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
   // レスポンス用の received_at はハンドラ側で生成する。
