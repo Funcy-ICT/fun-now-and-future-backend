@@ -1,6 +1,10 @@
 import { app } from "./app";
 
 describe("receiveSensorData", () => {
+	beforeAll(() => {
+		process.env.MAC_HASH_KEY = "test-key-0123456789-0123456789-0123456789";
+	});
+
 	test("POSTリクエストを受け取れる", async () => {
 		const res = await app.request("/receiveSensorData", {
 			method: "POST",
