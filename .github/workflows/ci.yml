@@ -32,6 +32,8 @@ jobs:
       - run: npm run build
 
       - name: Smoke test
+        env:
+          MAC_HASH_KEY: ci-smoke-test-key-not-a-secret-0123456789
         run: |
           node lib/index.js &
           SERVER_PID=$!
