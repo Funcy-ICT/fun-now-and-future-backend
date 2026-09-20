@@ -1,9 +1,6 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
-import { FieldValue } from "firebase-admin/firestore";
-import { SensorData } from "../schema/sensor_data";
-import { SensorDataSchema } from "../schema/sensor_data";
 import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
 
@@ -25,22 +22,7 @@ export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
 const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
-// ESP32からのデータを受け取り、Firestoreに保存する関数
-// ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
-
-
-const pendingScanDocSchema = SensorDataSchema.extend({
-  received_at: z.instanceof(Timestamp),
-});
-
-type PendingScansData = z.infer<typeof pendingScanDocSchema>;
-
-export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
-  await db.collection("pending_scans").add({
-    ...sensorData,
-    received_at: FieldValue.serverTimestamp(),
-  });
-};
+// pending_scansへの保存は、pub/subのプッシュを受ける処理側(controllers/pubsub_push.ts)が行う。
 
 // Pub/Subのメッセージ(ScanEvent)をpending_scansに保存した形。受信時刻はTimestampにして、窓の範囲で検索できるようにする。
 export const PendingScanEventSchema = ScanEventSchema.omit({ receivedAt: true }).extend({
@@ -217,44 +199,6 @@ export const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): Scan
     observed_at: data.observed_at.toDate(),
     location: data.location,
   };
-}
-
-export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
-  const result: PendingScansData[] = [];
-  const snapshot = await db.collection("pending_scans").get();
-
-  for (const doc of snapshot.docs) {
-    const docId = doc.id;
-    const parsed = pendingScanDocSchema.safeParse(doc.data());
-    if (!parsed.success) {
-      console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
-      continue;
-    }
-    result.push(parsed.data);
-  }
-  return result;
-}
-
-export const delete_pending_scans = async (): Promise<void> => {
-  const collectionRef = db.collection("pending_scans");
-  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
-  let totalDeleted = 0;
-
-  while (true) {
-    const snapshot = await collectionRef.limit(batchSize).get();
-    if (snapshot.empty) {
-      break;
-    }
-
-    const batch = db.batch();
-    for (const doc of snapshot.docs) {
-      batch.delete(doc.ref);
-    }
-    await batch.commit();
-    totalDeleted += snapshot.size;
-  }
-
-  console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
 
 export const MaxDeviceSchema = z.object({
