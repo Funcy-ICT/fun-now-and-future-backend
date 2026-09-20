@@ -1,17 +1,19 @@
 import { Hono } from "hono";
 import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
-import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
+import { Timestamp } from "firebase-admin/firestore";
+import { aggregateWindow, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline, STALE_PENDING_SCAN_MS } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
 import { isValidMac, hashMac } from "../services/mac";
 import { getHashKey } from "../lib/hash_key";
-import { buildScanEvent } from "../services/scan_event";
+import { buildScanEvent, toParsedDevice } from "../services/scan_event";
 import { publishScanEvent } from "../repositories/pubsub";
 import {
-  take_out_pending_scans,
+  getPendingScanEventsInWindow,
   saveCongestionRecords,
   saving_node_health_status,
-  delete_pending_scans,
+  deletePendingScansByIds,
+  deleteStalePendingScans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
   CongestionRecordInput,
@@ -97,7 +99,7 @@ export const aggregateRoute = new Hono();
 
 aggregateRoute.post("/aggregate", async (c) => {
   const now = new Date();
-  const windowStart = previousWindowStart(now);
+  const { start: windowStart, end: windowEnd } = aggregateWindow(now);
   const weekday = jstWeekday(windowStart.toMillis());
   const config = await getFilterPipelineConfig();
 
@@ -106,15 +108,16 @@ aggregateRoute.post("/aggregate", async (c) => {
     windowStart: windowStart.toDate().toISOString(),
   });
 
-  const scans = await take_out_pending_scans();
+  // 窓の範囲に受信したデータだけを読む。読んだドキュメントのIDは、最後に削除するために持っておく
+  const { ids, scans } = await getPendingScanEventsInWindow(windowStart, windowEnd);
 
-  // ノード監視は正規化前の生の件数を使うため、先に集計する
+  // ノード監視は絞り込みの前の件数を使うため、先に集計する
   const healthStats = scans.length > 0 ? aggregateNodeHealth(scans, windowStart) : [];
 
-  // raw / parsed を ParsedDevice に揃える
+  // 受信でパース済みなので、フィルタが受け取るParsedDeviceに変換するだけでよい
   const normalized = scans.map(scan => ({
     location: scan.location,
-    devices: scan.devices.map(normalizeDevice),
+    devices: scan.devices.map(toParsedDevice),
     nodeId: scan.nodeId,
   }));
 
@@ -147,7 +150,10 @@ aggregateRoute.post("/aggregate", async (c) => {
 
   await saveCongestionRecords(records, windowStart);
   await saving_node_health_status(healthStats);
-  await delete_pending_scans();
+  await deletePendingScansByIds(ids);
+
+  // 窓に間に合わず遅れて届いたデータは、読まれないまま残る。溜まり続けないよう、古いものを消す
+  await deleteStalePendingScans(Timestamp.fromMillis(now.getTime() - STALE_PENDING_SCAN_MS));
 
   console.info("aggregate finished", {
     scanCount: scans.length,
