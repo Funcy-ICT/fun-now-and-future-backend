@@ -3,6 +3,10 @@ import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
+import { isValidMac, hashMac } from "../services/mac";
+import { getHashKey } from "../lib/hash_key";
+import { buildScanEvent } from "../services/scan_event";
+import { publishScanEvent } from "../repositories/pubsub";
 import {
   take_out_pending_scans,
   saveCongestionRecords,
@@ -47,20 +51,43 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
-  // データベースに保存する処理を呼び出す
-  await savePendingScan(parseResult.data);
+  const sensorData = parseResult.data;
+
+  // ハッシュ化する前に、macの書式を確認する。不正なmacが1つでも含まれていれば、そのPOSTは受け付けない
+  if (!sensorData.devices.every(device => isValidMac(device.mac))) {
+    return c.json({
+      status: "error",
+      message: "mac is invalid",
+    }, 400);
+  }
 
   // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
-  // レスポンス用の received_at はハンドラ側で生成する。
-  const sensorData = parseResult.data;
-  const receivedAt = new Date().toISOString();
+  // レスポンス用の received_at はハンドラ側で生成する。pub/subのメッセージにも同じ値を載せる。
+  const receivedAt = new Date();
+
+  // firestoreにも生のmacを残さない。ハッシュ化した値でも、/aggregateの重複排除はmacの文字列をキーにするだけなのでそのまま動く
+  const key = getHashKey();
+
+  // データベースに保存する処理を呼び出す
+  await savePendingScan({
+    ...sensorData,
+    devices: sensorData.devices.map(device => ({ ...device, mac: hashMac(device.mac, key) })),
+  });
+
+  // firestoreへの保存が入口の間は、publishの失敗でPOSTを失敗させない。失敗させるとesp32が再送し、自動採番のドキュメントIDでfirestoreに二重に書かれるため。
+  // pub/subが唯一の入口になったら、失敗をエラーとして返す形に変える。
+  try {
+    await publishScanEvent(buildScanEvent(sensorData, receivedAt, key));
+  } catch (error) {
+    console.error("Failed to publish scan event:", error instanceof Error ? error.message : error);
+  }
 
   // 正しく届いたか確認
   return c.json({
     status: "success",
     message: "Data received successfully",
-    received_at: receivedAt,
-    data: sensorData,
+    received_at: receivedAt.toISOString(),
+    sendId: sensorData.sendId ?? null,
   }, 200);
 });
 
