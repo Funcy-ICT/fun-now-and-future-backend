@@ -1,9 +1,19 @@
 import { serve } from "@hono/node-server";
-import { app } from "./app";
+import { app, getServiceRole } from "./app";
 import { getHashKey } from "./lib/hash_key";
+import { getScanEventsTopic } from "./lib/pubsub";
 
-//鍵が未設定のままデプロイされて、受信のたびに失敗するのを防ぐため、起動時に確認する
-getHashKey();
+const role = getServiceRole();
+if (role === "all") {
+  console.warn("SERVICE_ROLE is not set, so all routes are enabled.");
+}
+
+//受信を受け持つサービスは、鍵とトピックが未設定のままデプロイされると、受信のたびに失敗してしまう。起動時に確認して防ぐ。
+//処理側(worker)はmacをハッシュ化せず、publishもしないので、どちらも要らない。
+if (role !== "worker") {
+  getHashKey();
+  getScanEventsTopic();
+}
 
 //サーバー起動
 const port = Number(process.env.PORT) || 8080;
