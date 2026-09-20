@@ -114,6 +114,19 @@ export const previousWindowStart = (date: Date): Timestamp => {
   return Timestamp.fromMillis(previousWindowStartMs);
 };
 
+// pub/sub経由でfirestoreに書かれるまでの遅れを待つ猶予。Cloud Schedulerは分単位のcronなので、窓が閉じた1分後に呼ぶ(1-59/5 * * * *)。
+export const AGGREGATE_GRACE_MS = 60 * 1000;
+
+// 窓に間に合わず遅れて届いたデータを消すまでの時間
+export const STALE_PENDING_SCAN_MS = 24 * 60 * 60 * 1000;
+
+// 集計する窓[start, end)。猶予の分だけ現在時刻を戻してから、1つ前の窓を求める。
+// 猶予より早く呼ばれても、閉じてから猶予が過ぎた窓だけが対象になる。
+export const aggregateWindow = (now: Date): { start: Timestamp; end: Timestamp } => {
+  const start = previousWindowStart(new Date(now.getTime() - AGGREGATE_GRACE_MS));
+  return { start, end: Timestamp.fromMillis(start.toMillis() + WINDOW_MS) };
+};
+
 export const filterByRssi = (
   devices: ParsedDevice[],
   minRssi: number
