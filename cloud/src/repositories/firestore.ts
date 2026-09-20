@@ -86,6 +86,22 @@ export const getPendingScanEventsInWindow = async (
   return { ids: snapshot.docs.map(doc => doc.id), scans };
 };
 
+// 読んだドキュメントだけを消す。コレクションごと消すと、集計中に届いたデータを数えないまま消してしまう。
+export const deletePendingScansByIds = async (ids: string[]): Promise<void> => {
+  const collectionRef = db.collection("pending_scans");
+  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = db.batch();
+    for (const id of ids.slice(i, i + batchSize)) {
+      batch.delete(collectionRef.doc(id));
+    }
+    await batch.commit();
+  }
+
+  console.info(`Deleted ${ids.length} documents from pending_scans collection.`);
+};
+
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
