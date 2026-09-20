@@ -129,10 +129,10 @@ src/
 ```
 
 ### 2. POST /receiveSensorData
-ESP32（センサー端末）から BLE 検知データを受信し、Firestore に保存。
-macアドレスは受信の時点でハッシュ化（HMAC-SHA256）し、Firestoreにもハッシュ化した値だけを保存する。
-併せて、ハッシュ化した検出データ（rawの場合はパース結果と`rawData`も含む）をPub/Subのトピックにpublishする（BigQueryへの蓄積用）。
-publishに失敗しても、Firestoreへの保存が入口の間は200を返し、ログに残す。
+ESP32（センサー端末）から BLE 検知データを受信し、Pub/Subのトピックにpublishする。
+macアドレスは受信の時点でハッシュ化（HMAC-SHA256）する。rawの場合はパースして、パース結果と`rawData`も含める。
+publishの完了を待ってから200を返す。失敗したら500を返すので、ESP32は再送する。
+`pending_scans`への保存と、BigQueryへの蓄積は、それぞれのサブスクリプションが行う。
 * 認証 - ヘッダー `x-api-key: <API_KEY>`
 * 受け付ける値
   * `sendId`（任意） - 送信ごとのUUID。再送のときは同じ値を使う。64文字以下
@@ -172,12 +172,14 @@ publishに失敗しても、Firestoreへの保存が入口の間は200を返し�
 `sendId`は、リクエストで送られてきた値。無ければ`null`。
 
 ### 3. POST /aggregate
-`pending_scans`に溜まったBLEスキャンデータを集計し、ロケーションごとの混雑度（`congestion_records`）とノード監視
-データ（`node_health_stats`）を書き込んで、`pending_scans`を空にする。Cloud Schedulerから5分間隔で呼び出される
-ことを想定した内部エンドポイント。
-* 認証 - **現状なし**。外部から直接呼び出せてしまうため、Cloud Scheduler以外からの呼び出しを防ぐ対策（OIDC認証
-  など）が未実装の既知の課題
+窓（5分）の範囲に受信した`pending_scans`のデータを集計し、ロケーションごとの混雑度（`congestion_records`）と
+ノード監視データ（`node_health_stats`）を書き込んで、読んだドキュメントだけを削除する。窓が閉じた1分後に、
+Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した内部エンドポイント（`worker`のみ）。
+* 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをCloud Schedulerのサービスアカウントだけに
+  許可する。`SERVICE_ROLE`が未設定のローカルでは、認証なしで呼び出せる
 * リクエストボディ - なし
+* 窓は`received_at`（受信エンドポイントが付けた受信時刻）で決める。猶予の1分は、pub/sub経由でFirestoreに書かれる
+  までの遅れを待つため。窓に間に合わず遅れて届いたデータは数えず、24時間より古いものを消す
 * レスポンス例 (200 OK)
 ```json
 {
