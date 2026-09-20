@@ -63,6 +63,29 @@ export const savePendingScanEvent = async (event: ScanEvent, messageId: string):
   });
 };
 
+// 窓の範囲[windowStart, windowEnd)に受信したメッセージだけを読む。読んだドキュメントのIDも返し、削除に使う。
+// 検証に失敗したドキュメントは集計に使わないが、窓の中にあるのでIDには含める。
+export const getPendingScanEventsInWindow = async (
+  windowStart: Timestamp,
+  windowEnd: Timestamp,
+): Promise<{ ids: string[]; scans: PendingScanEvent[] }> => {
+  const snapshot = await db.collection("pending_scans")
+    .where("received_at", ">=", windowStart)
+    .where("received_at", "<", windowEnd)
+    .get();
+
+  const scans: PendingScanEvent[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = PendingScanEventSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in pending_scans document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    scans.push(parsed.data);
+  }
+  return { ids: snapshot.docs.map(doc => doc.id), scans };
+};
+
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
