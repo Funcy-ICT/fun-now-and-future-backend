@@ -9,3 +9,12 @@ export const getPubSub = (): PubSub => {
   });
   return client;
 };
+
+// 受信したデータはpub/sub経由でしかfirestoreに届かないので、トピックが無いとデータが消える。未設定なら例外を投げる。
+export const getScanEventsTopic = (): string => {
+  const topic = process.env.SCAN_EVENTS_TOPIC;
+  if (!topic) {
+    throw new Error("SCAN_EVENTS_TOPIC is not set");
+  }
+  return topic;
+};
