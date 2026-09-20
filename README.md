@@ -47,9 +47,10 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
 ```
 src/
 ├── index.ts               # エントリーポイント（serve()でサーバー起動のみ）
-├── app.ts                 # Honoアプリの組み立て（ルーティングの登録）
+├── app.ts                 # Honoアプリの組み立て（SERVICE_ROLEごとのルーティングの登録）
 ├── controllers/           # HTTPの受け口（リクエスト検証・レスポンス整形）
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
+│   ├── pubsub_push.ts     # /pubsub/scan-events（Pub/Subのプッシュを受けてpending_scansに保存）
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
 │   └── batch.ts           # /internal/batch/calc-max-device
 ├── services/              # ビジネスロジック
@@ -86,7 +87,8 @@ src/
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
-| `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。未設定ならpublishしない（GCPの準備前でもデプロイできる） | `scan-events` |
+| `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
+| `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
 
 ## Firestore設定ドキュメント
 
