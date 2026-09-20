@@ -102,6 +102,28 @@ export const deletePendingScansByIds = async (ids: string[]): Promise<void> => {
   console.info(`Deleted ${ids.length} documents from pending_scans collection.`);
 };
 
+// 窓に間に合わず遅れて届いたデータは、集計の対象にならず、読まれないまま残る。溜まり続けないよう、古いものを消す。
+export const deleteStalePendingScans = async (before: Timestamp): Promise<void> => {
+  const batchSize = 500;
+  let totalDeleted = 0;
+
+  while (true) {
+    const snapshot = await db.collection("pending_scans").where("received_at", "<", before).limit(batchSize).get();
+    if (snapshot.empty) break;
+
+    const batch = db.batch();
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+    totalDeleted += snapshot.size;
+  }
+
+  if (totalDeleted > 0) {
+    console.info(`Deleted ${totalDeleted} stale documents from pending_scans collection.`);
+  }
+};
+
 export async function getLatestSensorData(location: string) {
   const snapshot = await db.collection("sensorData")
     .where("location", "==", location)
