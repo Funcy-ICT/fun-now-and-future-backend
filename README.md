@@ -47,9 +47,10 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
 ```
 src/
 ├── index.ts               # エントリーポイント（serve()でサーバー起動のみ）
-├── app.ts                 # Honoアプリの組み立て（ルーティングの登録）
+├── app.ts                 # Honoアプリの組み立て（SERVICE_ROLEごとのルーティングの登録）
 ├── controllers/           # HTTPの受け口（リクエスト検証・レスポンス整形）
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
+│   ├── pubsub_push.ts     # /pubsub/scan-events（Pub/Subのプッシュを受けてpending_scansに保存）
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
 │   └── batch.ts           # /internal/batch/calc-max-device
 ├── services/              # ビジネスロジック
@@ -86,7 +87,23 @@ src/
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
-| `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。未設定ならpublishしない（GCPの準備前でもデプロイできる） | `scan-events` |
+| `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
+| `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
+
+## サービスの分け方（SERVICE_ROLE）
+
+同じコード・同じイメージを、環境変数`SERVICE_ROLE`を変えて、2つのCloud Runサービスとしてデプロイする。
+
+| SERVICE_ROLE | 役割 | ルート | 公開 |
+| --- | --- | --- | --- |
+| `ingest` | 受信 | `/receiveSensorData`, サイネージ用のルート, `/health` | 公開（ESP32とサイネージが呼ぶ） |
+| `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
+| （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
+
+* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`が無いと起動に失敗する。`worker`はどちらも要らない
+* `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
+* Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
+* Cloud Schedulerは、`worker`の`/aggregate`にOIDCトークン付きで、`1-59/5 * * * *`（窓が閉じた1分後）で呼ぶ
 
 ## Firestore設定ドキュメント
 
@@ -112,10 +129,10 @@ src/
 ```
 
 ### 2. POST /receiveSensorData
-ESP32（センサー端末）から BLE 検知データを受信し、Firestore に保存。
-macアドレスは受信の時点でハッシュ化（HMAC-SHA256）し、Firestoreにもハッシュ化した値だけを保存する。
-併せて、ハッシュ化した検出データ（rawの場合はパース結果と`rawData`も含む）をPub/Subのトピックにpublishする（BigQueryへの蓄積用）。
-publishに失敗しても、Firestoreへの保存が入口の間は200を返し、ログに残す。
+ESP32（センサー端末）から BLE 検知データを受信し、Pub/Subのトピックにpublishする。
+macアドレスは受信の時点でハッシュ化（HMAC-SHA256）する。rawの場合はパースして、パース結果と`rawData`も含める。
+publishの完了を待ってから200を返す。失敗したら500を返すので、ESP32は再送する。
+`pending_scans`への保存と、BigQueryへの蓄積は、それぞれのサブスクリプションが行う。
 * 認証 - ヘッダー `x-api-key: <API_KEY>`
 * 受け付ける値
   * `sendId`（任意） - 送信ごとのUUID。再送のときは同じ値を使う。64文字以下
@@ -155,12 +172,14 @@ publishに失敗しても、Firestoreへの保存が入口の間は200を返し�
 `sendId`は、リクエストで送られてきた値。無ければ`null`。
 
 ### 3. POST /aggregate
-`pending_scans`に溜まったBLEスキャンデータを集計し、ロケーションごとの混雑度（`congestion_records`）とノード監視
-データ（`node_health_stats`）を書き込んで、`pending_scans`を空にする。Cloud Schedulerから5分間隔で呼び出される
-ことを想定した内部エンドポイント。
-* 認証 - **現状なし**。外部から直接呼び出せてしまうため、Cloud Scheduler以外からの呼び出しを防ぐ対策（OIDC認証
-  など）が未実装の既知の課題
+窓（5分）の範囲に受信した`pending_scans`のデータを集計し、ロケーションごとの混雑度（`congestion_records`）と
+ノード監視データ（`node_health_stats`）を書き込んで、読んだドキュメントだけを削除する。窓が閉じた1分後に、
+Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した内部エンドポイント（`worker`のみ）。
+* 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをCloud Schedulerのサービスアカウントだけに
+  許可する。`SERVICE_ROLE`が未設定のローカルでは、認証なしで呼び出せる
 * リクエストボディ - なし
+* 窓は`received_at`（受信エンドポイントが付けた受信時刻）で決める。猶予の1分は、pub/sub経由でFirestoreに書かれる
+  までの遅れを待つため。窓に間に合わず遅れて届いたデータは数えず、24時間より古いものを消す
 * レスポンス例 (200 OK)
 ```json
 {
@@ -174,6 +193,15 @@ publishに失敗しても、Firestoreへの保存が入口の間は200を返し�
   る欠測と「誰もいなかった」を区別するために必要）
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
+
+### POST /pubsub/scan-events（`worker`のみ）
+Pub/Subのプッシュサブスクリプションからメッセージを受け取り、`pending_scans`に保存する。
+* 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをPub/Subのサービスアカウントだけに許可する
+* リクエストボディ - Pub/Subの封筒。`message.data`にScanEventのJSONがbase64で入り、`message.messageId`がある
+* 保存 - ドキュメントIDは`{nodeId}__{sendId}`。`sendId`が無ければ`msg__{messageId}`。同じメッセージが2回届いても、
+  同じドキュメントに上書きされて二重に数えない
+* `received_at`には、受信エンドポイントが付けた`receivedAt`を使う。処理側で書き込んだ時刻は使わない
+* レスポンス - 成功したら204。封筒やメッセージが不正なら400で、再試行のあとデッドレターに入る
 
 ### 4. POST /internal/batch/calc-max-device
 `congestion_records`の履歴から、locationごと・曜日ごとの基準値（`max_devices`）を算出する日次バッチ。Cloud

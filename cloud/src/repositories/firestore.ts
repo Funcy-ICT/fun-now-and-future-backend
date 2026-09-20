@@ -1,9 +1,7 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
-import { FieldValue } from "firebase-admin/firestore";
-import { SensorData } from "../schema/sensor_data";
-import { SensorDataSchema } from "../schema/sensor_data";
+import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
 
 export type CongestionRecordInput = {
@@ -24,21 +22,88 @@ export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
 const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
-// ESP32からのデータを受け取り、Firestoreに保存する関数
-// ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
+// pending_scansへの保存は、pub/subのプッシュを受ける処理側(controllers/pubsub_push.ts)が行う。
 
-
-const pendingScanDocSchema = SensorDataSchema.extend({
+// Pub/Subのメッセージ(ScanEvent)をpending_scansに保存した形。受信時刻はTimestampにして、窓の範囲で検索できるようにする。
+export const PendingScanEventSchema = ScanEventSchema.omit({ receivedAt: true }).extend({
   received_at: z.instanceof(Timestamp),
 });
+export type PendingScanEvent = z.infer<typeof PendingScanEventSchema>;
 
-type PendingScansData = z.infer<typeof pendingScanDocSchema>;
+// 同じメッセージが2回届いても、同じドキュメントに上書きされて二重に数えないよう、IDをメッセージから決める。
+// sendIdがあればnodeIdと組にする。無ければpub/subのmessageIdを使う(esp32の再送は防げないが、pub/subの再配信は防げる)。
+export const pendingScanDocId = (event: ScanEvent, messageId: string): string =>
+  event.sendId !== null
+    ? `${sanitizeForDocId(event.nodeId)}__${sanitizeForDocId(event.sendId)}`
+    : `msg__${sanitizeForDocId(messageId)}`;
 
-export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
-  await db.collection("pending_scans").add({
-    ...sensorData,
-    received_at: FieldValue.serverTimestamp(),
+export const savePendingScanEvent = async (event: ScanEvent, messageId: string): Promise<void> => {
+  const { receivedAt, ...rest } = event;
+  await db.collection("pending_scans").doc(pendingScanDocId(event, messageId)).set({
+    ...rest,
+    received_at: Timestamp.fromDate(new Date(receivedAt)),
   });
+};
+
+// 窓の範囲[windowStart, windowEnd)に受信したメッセージだけを読む。読んだドキュメントのIDも返し、削除に使う。
+// 検証に失敗したドキュメントは集計に使わないが、窓の中にあるのでIDには含める。
+export const getPendingScanEventsInWindow = async (
+  windowStart: Timestamp,
+  windowEnd: Timestamp,
+): Promise<{ ids: string[]; scans: PendingScanEvent[] }> => {
+  const snapshot = await db.collection("pending_scans")
+    .where("received_at", ">=", windowStart)
+    .where("received_at", "<", windowEnd)
+    .get();
+
+  const scans: PendingScanEvent[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = PendingScanEventSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in pending_scans document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    scans.push(parsed.data);
+  }
+  return { ids: snapshot.docs.map(doc => doc.id), scans };
+};
+
+// 読んだドキュメントだけを消す。コレクションごと消すと、集計中に届いたデータを数えないまま消してしまう。
+export const deletePendingScansByIds = async (ids: string[]): Promise<void> => {
+  const collectionRef = db.collection("pending_scans");
+  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = db.batch();
+    for (const id of ids.slice(i, i + batchSize)) {
+      batch.delete(collectionRef.doc(id));
+    }
+    await batch.commit();
+  }
+
+  console.info(`Deleted ${ids.length} documents from pending_scans collection.`);
+};
+
+// 窓に間に合わず遅れて届いたデータは、集計の対象にならず、読まれないまま残る。溜まり続けないよう、古いものを消す。
+export const deleteStalePendingScans = async (before: Timestamp): Promise<void> => {
+  const batchSize = 500;
+  let totalDeleted = 0;
+
+  while (true) {
+    const snapshot = await db.collection("pending_scans").where("received_at", "<", before).limit(batchSize).get();
+    if (snapshot.empty) break;
+
+    const batch = db.batch();
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+    totalDeleted += snapshot.size;
+  }
+
+  if (totalDeleted > 0) {
+    console.info(`Deleted ${totalDeleted} stale documents from pending_scans collection.`);
+  }
 };
 
 export async function getLatestSensorData(location: string) {
@@ -134,44 +199,6 @@ export const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): Scan
     observed_at: data.observed_at.toDate(),
     location: data.location,
   };
-}
-
-export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
-  const result: PendingScansData[] = [];
-  const snapshot = await db.collection("pending_scans").get();
-
-  for (const doc of snapshot.docs) {
-    const docId = doc.id;
-    const parsed = pendingScanDocSchema.safeParse(doc.data());
-    if (!parsed.success) {
-      console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
-      continue;
-    }
-    result.push(parsed.data);
-  }
-  return result;
-}
-
-export const delete_pending_scans = async (): Promise<void> => {
-  const collectionRef = db.collection("pending_scans");
-  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
-  let totalDeleted = 0;
-
-  while (true) {
-    const snapshot = await collectionRef.limit(batchSize).get();
-    if (snapshot.empty) {
-      break;
-    }
-
-    const batch = db.batch();
-    for (const doc of snapshot.docs) {
-      batch.delete(doc.ref);
-    }
-    await batch.commit();
-    totalDeleted += snapshot.size;
-  }
-
-  console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
 }
 
 export const MaxDeviceSchema = z.object({

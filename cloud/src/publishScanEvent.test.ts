@@ -2,7 +2,11 @@ import { publishScanEvent } from "./repositories/pubsub";
 import { getPubSub } from "./lib/pubsub";
 import { ScanEvent } from "./schema/scan_event";
 
-jest.mock("./lib/pubsub");
+// getPubSubだけをモックにする。トピック名を読むgetScanEventsTopicは本物を使う
+jest.mock("./lib/pubsub", () => ({
+	...jest.requireActual("./lib/pubsub"),
+	getPubSub: jest.fn(),
+}));
 
 const event: ScanEvent = {
 	sendId: null,
@@ -42,9 +46,9 @@ describe("publishScanEvent", () => {
 		}
 	});
 
-	test("トピックが未設定ならpublishしない", async () => {
+	test("トピックが未設定なら、publishせずに例外を投げる", async () => {
 		delete process.env.SCAN_EVENTS_TOPIC;
-		await publishScanEvent(event);
+		await expect(publishScanEvent(event)).rejects.toThrow("SCAN_EVENTS_TOPIC is not set");
 		expect(getPubSub).not.toHaveBeenCalled();
 		expect(publishMessage).not.toHaveBeenCalled();
 	});

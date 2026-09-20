@@ -1,4 +1,4 @@
-import { runPipeline, STAGE_REGISTRY } from "./services/scan_service";
+import { runPipeline, STAGE_REGISTRY, aggregateWindow } from "./services/scan_service";
 import { ParsedDevice } from "./schema/sensor_data";
 
 const device = (overrides: Partial<ParsedDevice> & { mac: string }): ParsedDevice => ({
@@ -78,5 +78,27 @@ describe("runPipeline", () => {
 		]);
 
 		expect(dedupeFirst.result.length).toBe(companyFilterFirst.result.length);
+	});
+});
+
+describe("aggregateWindow", () => {
+	const window = (iso: string) => {
+		const { start, end } = aggregateWindow(new Date(iso));
+		return [start.toDate().toISOString(), end.toDate().toISOString()];
+	};
+
+	test("窓が閉じた1分後に呼ぶと、その窓が対象になる", () => {
+		expect(window("2026-09-20T10:06:00.000Z")).toEqual(["2026-09-20T10:00:00.000Z", "2026-09-20T10:05:00.000Z"]);
+		expect(window("2026-09-20T10:06:59.999Z")).toEqual(["2026-09-20T10:00:00.000Z", "2026-09-20T10:05:00.000Z"]);
+	});
+
+	test("猶予より早く呼ばれたら、1つ前の窓が対象になる", () => {
+		expect(window("2026-09-20T10:05:00.000Z")).toEqual(["2026-09-20T09:55:00.000Z", "2026-09-20T10:00:00.000Z"]);
+		expect(window("2026-09-20T10:05:59.999Z")).toEqual(["2026-09-20T09:55:00.000Z", "2026-09-20T10:00:00.000Z"]);
+	});
+
+	test("窓の長さは5分", () => {
+		const { start, end } = aggregateWindow(new Date("2026-09-20T10:11:00.000Z"));
+		expect(end.toMillis() - start.toMillis()).toBe(5 * 60 * 1000);
 	});
 });

@@ -1,17 +1,18 @@
 import { Hono } from "hono";
-import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
-import { normalizeDevice, previousWindowStart, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline } from "../services/scan_service";
+import { Timestamp } from "firebase-admin/firestore";
+import { aggregateWindow, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline, STALE_PENDING_SCAN_MS } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
-import { isValidMac, hashMac } from "../services/mac";
+import { isValidMac } from "../services/mac";
 import { getHashKey } from "../lib/hash_key";
-import { buildScanEvent } from "../services/scan_event";
+import { buildScanEvent, toParsedDevice } from "../services/scan_event";
 import { publishScanEvent } from "../repositories/pubsub";
 import {
-  take_out_pending_scans,
+  getPendingScanEventsInWindow,
   saveCongestionRecords,
   saving_node_health_status,
-  delete_pending_scans,
+  deletePendingScansByIds,
+  deleteStalePendingScans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
   CongestionRecordInput,
@@ -61,26 +62,14 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
-  // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
-  // レスポンス用の received_at はハンドラ側で生成する。pub/subのメッセージにも同じ値を載せる。
+  // レスポンス用の received_at と、pub/subのメッセージに載せる受信時刻は、ここで取った同じ値を使う。
+  // firestoreに書く時刻は、処理側での書き込みが遅れた分だけずれるので使わない。
   const receivedAt = new Date();
-
-  // firestoreにも生のmacを残さない。ハッシュ化した値でも、/aggregateの重複排除はmacの文字列をキーにするだけなのでそのまま動く
   const key = getHashKey();
 
-  // データベースに保存する処理を呼び出す
-  await savePendingScan({
-    ...sensorData,
-    devices: sensorData.devices.map(device => ({ ...device, mac: hashMac(device.mac, key) })),
-  });
-
-  // firestoreへの保存が入口の間は、publishの失敗でPOSTを失敗させない。失敗させるとesp32が再送し、自動採番のドキュメントIDでfirestoreに二重に書かれるため。
-  // pub/subが唯一の入口になったら、失敗をエラーとして返す形に変える。
-  try {
-    await publishScanEvent(buildScanEvent(sensorData, receivedAt, key));
-  } catch (error) {
-    console.error("Failed to publish scan event:", error instanceof Error ? error.message : error);
-  }
+  // pending_scansへの書き込みは、pub/subのプッシュを受ける処理側(pubsubPushRoute)が行う。
+  // publishの完了を待ち、失敗したらエラーを返してesp32に再送させる。200を返したデータは、pub/subに届いている。
+  await publishScanEvent(buildScanEvent(sensorData, receivedAt, key));
 
   // 正しく届いたか確認
   return c.json({
@@ -97,7 +86,7 @@ export const aggregateRoute = new Hono();
 
 aggregateRoute.post("/aggregate", async (c) => {
   const now = new Date();
-  const windowStart = previousWindowStart(now);
+  const { start: windowStart, end: windowEnd } = aggregateWindow(now);
   const weekday = jstWeekday(windowStart.toMillis());
   const config = await getFilterPipelineConfig();
 
@@ -106,15 +95,16 @@ aggregateRoute.post("/aggregate", async (c) => {
     windowStart: windowStart.toDate().toISOString(),
   });
 
-  const scans = await take_out_pending_scans();
+  // 窓の範囲に受信したデータだけを読む。読んだドキュメントのIDは、最後に削除するために持っておく
+  const { ids, scans } = await getPendingScanEventsInWindow(windowStart, windowEnd);
 
-  // ノード監視は正規化前の生の件数を使うため、先に集計する
+  // ノード監視は絞り込みの前の件数を使うため、先に集計する
   const healthStats = scans.length > 0 ? aggregateNodeHealth(scans, windowStart) : [];
 
-  // raw / parsed を ParsedDevice に揃える
+  // 受信でパース済みなので、フィルタが受け取るParsedDeviceに変換するだけでよい
   const normalized = scans.map(scan => ({
     location: scan.location,
-    devices: scan.devices.map(normalizeDevice),
+    devices: scan.devices.map(toParsedDevice),
     nodeId: scan.nodeId,
   }));
 
@@ -147,7 +137,10 @@ aggregateRoute.post("/aggregate", async (c) => {
 
   await saveCongestionRecords(records, windowStart);
   await saving_node_health_status(healthStats);
-  await delete_pending_scans();
+  await deletePendingScansByIds(ids);
+
+  // 窓に間に合わず遅れて届いたデータは、読まれないまま残る。溜まり続けないよう、古いものを消す
+  await deleteStalePendingScans(Timestamp.fromMillis(now.getTime() - STALE_PENDING_SCAN_MS));
 
   console.info("aggregate finished", {
     scanCount: scans.length,

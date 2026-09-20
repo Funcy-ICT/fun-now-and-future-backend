@@ -1,4 +1,4 @@
-import { buildScanEvent } from "./services/scan_event";
+import { buildScanEvent, toParsedDevice } from "./services/scan_event";
 import { hashMac } from "./services/mac";
 import { ScanEventSchema } from "./schema/scan_event";
 import { SensorData } from "./schema/sensor_data";
@@ -76,5 +76,23 @@ describe("buildScanEvent", () => {
 	test("組み立てたメッセージはScanEventSchemaを通る。検出が0件でも通る", () => {
 		expect(ScanEventSchema.safeParse(buildScanEvent(sensorData(), receivedAt, key)).success).toBe(true);
 		expect(ScanEventSchema.safeParse(buildScanEvent(sensorData({ devices: [] }), receivedAt, key)).success).toBe(true);
+	});
+});
+
+describe("toParsedDevice", () => {
+	test("macにはmacHashが入り、formatはparsedになる", () => {
+		const device = buildScanEvent(sensorData(), receivedAt, key).devices[0];
+		expect(toParsedDevice(device)).toEqual({
+			mac: device.macHash,
+			rssi: -60,
+			format: "parsed",
+			companyId: "004C",
+			isNearbyInfo: true,
+		});
+	});
+
+	test("isNearbyInfoがnullならfalseとして扱う", () => {
+		const device = { ...buildScanEvent(sensorData(), receivedAt, key).devices[0], isNearbyInfo: null };
+		expect(toParsedDevice(device).isNearbyInfo).toBe(false);
 	});
 });

@@ -14,11 +14,6 @@ const post = (body: unknown) => app.request("/receiveSensorData", {
 	body: JSON.stringify(body),
 });
 
-const deletePendingScans = async (nodeId: string) => {
-	const snapshot = await db.collection("pending_scans").where("nodeId", "==", nodeId).get();
-	await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
-};
-
 // Apple(0x004C)のNearby Info(0x10)を含むアドバタイズ
 const appleRawData = "0aff4c001005011c2b3c4d";
 
@@ -52,8 +47,8 @@ describe("receiveSensorData", () => {
 		expect(json.sendId).toBeNull();
 	});
 
-	test("firestoreには生のmacアドレスではなく、ハッシュ化したmacアドレスを保存する", async () => {
-		const nodeId = "node-hash-test";
+	test("firestoreには何も書き込まない。pending_scansへの書き込みは処理側が行う", async () => {
+		const nodeId = "node-no-write-test";
 		const res = await post({
 			nodeId,
 			location: "london",
@@ -62,12 +57,7 @@ describe("receiveSensorData", () => {
 		expect(res.status).toBe(200);
 
 		const snapshot = await db.collection("pending_scans").where("nodeId", "==", nodeId).get();
-		expect(snapshot.size).toBe(1);
-		const saved = snapshot.docs[0].data();
-		expect(saved.devices[0].mac).toBe(hashMac("AA:BB:CC:DD:EE:01", process.env.MAC_HASH_KEY!));
-		expect(JSON.stringify(saved).toUpperCase()).not.toContain("AA:BB:CC:DD:EE:01");
-
-		await deletePendingScans(nodeId);
+		expect(snapshot.empty).toBe(true);
 	});
 
 	test("受信したデータからメッセージを組み立ててpublishし、sendIdを返す", async () => {
@@ -95,25 +85,20 @@ describe("receiveSensorData", () => {
 			addressType: "random_static",
 		});
 		expect(JSON.stringify(event).toUpperCase()).not.toContain("C0:11:22:33:44:01");
-
-		await deletePendingScans(nodeId);
 	});
 
-	test("publishに失敗しても、200を返す", async () => {
-		const nodeId = "node-publish-fail-test";
+	test("publishに失敗したら、500を返してesp32に再送させる", async () => {
 		(publishScanEvent as jest.Mock).mockRejectedValueOnce(new Error("publish failed"));
 		const errorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
 
 		const res = await post({
-			nodeId,
+			nodeId: "node-publish-fail-test",
 			location: "london",
 			devices: [{ format: "raw", mac: "AA:BB:CC:DD:EE:01", rssi: -60, rawData: "02011a020a0c" }],
 		});
-		expect(res.status).toBe(200);
-		expect(errorSpy).toHaveBeenCalled();
+		expect(res.status).toBe(500);
 
 		errorSpy.mockRestore();
-		await deletePendingScans(nodeId);
 	});
 
 	test("不正なmacアドレスが含まれていれば400を返し、保存もpublishもしない", async () => {
@@ -144,8 +129,6 @@ describe("receiveSensorData", () => {
 			devices: [{ format: "raw", mac: "AA:BB:CC:DD:EE:01", rssi: -110, rawData: "02011a020a0c" }],
 		});
 		expect(res.status).toBe(200);
-
-		await deletePendingScans(nodeId);
 	});
 
 	test("API Keyがない場合401を返す", async () => {
