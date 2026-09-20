@@ -90,6 +90,21 @@ src/
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
 | `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
 
+## サービスの分け方（SERVICE_ROLE）
+
+同じコード・同じイメージを、環境変数`SERVICE_ROLE`を変えて、2つのCloud Runサービスとしてデプロイする。
+
+| SERVICE_ROLE | 役割 | ルート | 公開 |
+| --- | --- | --- | --- |
+| `ingest` | 受信 | `/receiveSensorData`, サイネージ用のルート, `/health` | 公開（ESP32とサイネージが呼ぶ） |
+| `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
+| （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
+
+* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`が無いと起動に失敗する。`worker`はどちらも要らない
+* `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
+* Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
+* Cloud Schedulerは、`worker`の`/aggregate`にOIDCトークン付きで、`1-59/5 * * * *`（窓が閉じた1分後）で呼ぶ
+
 ## Firestore設定ドキュメント
 
 環境変数とは別に、以下のFirestoreドキュメントを事前に用意する必要がある。
