@@ -1,10 +1,9 @@
 import { Hono } from "hono";
-import { savePendingScan } from "../repositories/firestore";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { Timestamp } from "firebase-admin/firestore";
 import { aggregateWindow, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline, STALE_PENDING_SCAN_MS } from "../services/scan_service";
 import { SensorDataSchema, } from "../schema/sensor_data";
-import { isValidMac, hashMac } from "../services/mac";
+import { isValidMac } from "../services/mac";
 import { getHashKey } from "../lib/hash_key";
 import { buildScanEvent, toParsedDevice } from "../services/scan_event";
 import { publishScanEvent } from "../repositories/pubsub";
@@ -63,26 +62,14 @@ sensorRoute.post("/receiveSensorData", async (c) => {
     }, 400);
   }
 
-  // savePendingScan は Firestore の serverTimestamp を使うため void を返す仕様に変更された。
-  // レスポンス用の received_at はハンドラ側で生成する。pub/subのメッセージにも同じ値を載せる。
+  // レスポンス用の received_at と、pub/subのメッセージに載せる受信時刻は、ここで取った同じ値を使う。
+  // firestoreに書く時刻は、処理側での書き込みが遅れた分だけずれるので使わない。
   const receivedAt = new Date();
-
-  // firestoreにも生のmacを残さない。ハッシュ化した値でも、/aggregateの重複排除はmacの文字列をキーにするだけなのでそのまま動く
   const key = getHashKey();
 
-  // データベースに保存する処理を呼び出す
-  await savePendingScan({
-    ...sensorData,
-    devices: sensorData.devices.map(device => ({ ...device, mac: hashMac(device.mac, key) })),
-  });
-
-  // firestoreへの保存が入口の間は、publishの失敗でPOSTを失敗させない。失敗させるとesp32が再送し、自動採番のドキュメントIDでfirestoreに二重に書かれるため。
-  // pub/subが唯一の入口になったら、失敗をエラーとして返す形に変える。
-  try {
-    await publishScanEvent(buildScanEvent(sensorData, receivedAt, key));
-  } catch (error) {
-    console.error("Failed to publish scan event:", error instanceof Error ? error.message : error);
-  }
+  // pending_scansへの書き込みは、pub/subのプッシュを受ける処理側(pubsubPushRoute)が行う。
+  // publishの完了を待ち、失敗したらエラーを返してesp32に再送させる。200を返したデータは、pub/subに届いている。
+  await publishScanEvent(buildScanEvent(sensorData, receivedAt, key));
 
   // 正しく届いたか確認
   return c.json({
