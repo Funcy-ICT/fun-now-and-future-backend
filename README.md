@@ -194,6 +194,15 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
 
+### POST /pubsub/scan-events（`worker`のみ）
+Pub/Subのプッシュサブスクリプションからメッセージを受け取り、`pending_scans`に保存する。
+* 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをPub/Subのサービスアカウントだけに許可する
+* リクエストボディ - Pub/Subの封筒。`message.data`にScanEventのJSONがbase64で入り、`message.messageId`がある
+* 保存 - ドキュメントIDは`{nodeId}__{sendId}`。`sendId`が無ければ`msg__{messageId}`。同じメッセージが2回届いても、
+  同じドキュメントに上書きされて二重に数えない
+* `received_at`には、受信エンドポイントが付けた`receivedAt`を使う。処理側で書き込んだ時刻は使わない
+* レスポンス - 成功したら204。封筒やメッセージが不正なら400で、再試行のあとデッドレターに入る
+
 ### 4. POST /internal/batch/calc-max-device
 `congestion_records`の履歴から、locationごと・曜日ごとの基準値（`max_devices`）を算出する日次バッチ。Cloud
 Schedulerから1日1回（04:00 JST想定）呼び出されることを想定した内部エンドポイント。
