@@ -6,8 +6,9 @@ import { SensorDataSchema, } from "../schema/sensor_data";
 import { isValidMac } from "../services/mac";
 import { getHashKey } from "../lib/hash_key";
 import { buildScanEvent, toParsedDevice } from "../services/scan_event";
-import { hashStages } from "../services/filter_config";
-import { publishScanEvent } from "../repositories/pubsub";
+import { hashStages, stagesToJson } from "../services/filter_config";
+import { publishScanEvent, publishAggregateRun } from "../repositories/pubsub";
+import { AggregateRun } from "../schema/aggregate_run";
 import {
   getPendingScanEventsInWindow,
   saveCongestionRecords,
@@ -90,6 +91,7 @@ aggregateRoute.post("/aggregate", async (c) => {
   const { start: windowStart, end: windowEnd } = aggregateWindow(now);
   const weekday = jstWeekday(windowStart.toMillis());
   const config = await getFilterPipelineConfig();
+  const configHash = hashStages(config.stages);
 
   console.info("aggregate started", {
     startedAt: now.toISOString(),
@@ -112,12 +114,14 @@ aggregateRoute.post("/aggregate", async (c) => {
   const byLocation = groupByLocation(normalized);
 
   const records: CongestionRecordInput[] = [];
+  const runLocations: AggregateRun["locations"] = [];
 
   // ESP32は検出0件でもdevices: []でPOSTしてくる前提。空配列でもrunPipelineは自然に
   // uniqueDeviceCount: 0の結果を返すため、byLocationに出てきたlocationだけを処理すればよい
   for (const [location, devices] of byLocation) {
     const { result, trace, dedupeOutput } = runPipeline(devices, config.stages);
     records.push({ location, weekday, uniqueDeviceCount: result.length });
+    runLocations.push({ location, weekday, uniqueDeviceCount: result.length, stageTrace: trace });
 
     if (config.debugModeEnabled && dedupeOutput && devices.length > 0) {
       await saveScanDiagnostics({
@@ -136,12 +140,31 @@ aggregateRoute.post("/aggregate", async (c) => {
     }
   }
 
-  await saveCongestionRecords(records, windowStart, hashStages(config.stages));
+  await saveCongestionRecords(records, windowStart, configHash);
   await saving_node_health_status(healthStats);
   await deletePendingScansByIds(ids);
 
   // 窓に間に合わず遅れて届いたデータは、読まれないまま残る。溜まり続けないよう、古いものを消す
   await deleteStalePendingScans(Timestamp.fromMillis(now.getTime() - STALE_PENDING_SCAN_MS));
+
+  // 履歴は分析にしか使わない。失敗してもサイネージには影響しないので、集計は止めずにログに残す
+  try {
+    await publishAggregateRun({
+      windowStart: windowStart.toDate().toISOString(),
+      computedAt: now.toISOString(),
+      configHash,
+      stagesJson: stagesToJson(config.stages),
+      locations: runLocations,
+      nodes: healthStats.map(stat => ({
+        nodeId: stat.nodeId,
+        location: stat.location,
+        postCount: stat.postCount,
+        totalMacCount: stat.totalMacCount,
+      })),
+    });
+  } catch (error) {
+    console.error("Failed to publish aggregate run:", error instanceof Error ? error.message : error);
+  }
 
   console.info("aggregate finished", {
     scanCount: scans.length,
