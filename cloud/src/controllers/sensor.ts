@@ -6,6 +6,7 @@ import { SensorDataSchema, } from "../schema/sensor_data";
 import { isValidMac } from "../services/mac";
 import { getHashKey } from "../lib/hash_key";
 import { buildScanEvent, toParsedDevice } from "../services/scan_event";
+import { hashStages } from "../services/filter_config";
 import { publishScanEvent } from "../repositories/pubsub";
 import {
   getPendingScanEventsInWindow,
@@ -135,7 +136,7 @@ aggregateRoute.post("/aggregate", async (c) => {
     }
   }
 
-  await saveCongestionRecords(records, windowStart);
+  await saveCongestionRecords(records, windowStart, hashStages(config.stages));
   await saving_node_health_status(healthStats);
   await deletePendingScansByIds(ids);
 
