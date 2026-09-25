@@ -36,7 +36,7 @@ sensorRoute.post("/receiveSensorData", async (c) => {
 
   // APIキーの検証のための sensorAuthMiddleware 関数を呼び出す
   const authResult = await sensorAuthMiddleware(apiKey);
-  if (authResult === 0) {
+  if (authResult === -1) {
     return c.json({
       status: "error",
       message: "Unauthorized: Invalid or missing API Key",
