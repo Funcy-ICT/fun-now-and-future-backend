@@ -13,3 +13,8 @@ export const runQuery = async (query: AnalysisQuery): Promise<unknown[]> => {
   });
   return rows;
 };
+
+// ALTER TABLEなどのDDL。テーブルの定義を変えるので、課金の上限は付けない(読むデータが無い)。
+export const runDdl = async (sql: string): Promise<void> => {
+  await getBigQuery().query({ query: sql, location: BIGQUERY_LOCATION, useLegacySql: false });
+};
