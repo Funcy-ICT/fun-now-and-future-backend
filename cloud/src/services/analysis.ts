@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { StageConfig, StageTraceEntry } from "./scan_service";
+import { buildAnalysisQuery } from "./analysis_sql";
+import { runQuery } from "../repositories/bigquery";
+import { getScanEventsTableId } from "../lib/bigquery";
 
 // buildAnalysisQueryの結果の1行。TIMESTAMPはクライアントによって{ value }の形で返る
 const AnalysisRowSchema = z.object({
@@ -40,4 +43,16 @@ export const toWindowResults = (rows: unknown[], stages: StageConfig[]): WindowR
     uniqueDeviceCount: counts[stages.length],
     stageTrace: stages.map((stage, i) => ({ stageName: stage.name, countBefore: counts[i], countAfter: counts[i + 1] })),
   }));
+};
+
+// 生データから、指定した設定で窓とlocationごとの台数を数え直す。分析画面と、設定変更時の再計算で使う。
+export const countDevicesByWindow = async (input: {
+  stages: StageConfig[];
+  start: Date;
+  end: Date;
+  locations?: string[];
+}): Promise<WindowResult[]> => {
+  const query = buildAnalysisQuery({ ...input, tableId: getScanEventsTableId() });
+  const rows = await runQuery(query);
+  return toWindowResults(rows, input.stages);
 };
