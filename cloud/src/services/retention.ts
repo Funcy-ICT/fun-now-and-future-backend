@@ -1,4 +1,7 @@
-import { MAX_RETENTION_DAYS, MIN_RETENTION_DAYS } from "../schema/retention";
+import { getScanEventsTableId } from "../lib/bigquery";
+import { runDdl } from "../repositories/bigquery";
+import { getRetentionConfig, RetentionConfig, saveRetentionConfig } from "../repositories/firestore";
+import { MAX_RETENTION_DAYS, MIN_RETENTION_DAYS, RetentionInput } from "../schema/retention";
 
 const TABLE_ID_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+$/; // project.dataset.table
 
@@ -13,3 +16,12 @@ export const buildPartitionExpirationDdl = (tableId: string, days: number | null
   }
   return `ALTER TABLE \`${tableId}\` SET OPTIONS (partition_expiration_days = ${days === null ? "NULL" : days})`;
 };
+
+// BigQueryに適用してから、Firestoreに保存する。順序を逆にすると、設定は変わったのに実際の保持期間が変わらない状態になる。
+export const updateRetention = async (input: RetentionInput, updatedBy: string | null): Promise<void> => {
+  await runDdl(buildPartitionExpirationDdl(getScanEventsTableId(), input.scanEventsDays));
+  await saveRetentionConfig(input, updatedBy);
+};
+
+// 設定が無ければnullを返す。画面では「未設定(無期限)」として扱う。
+export const getRetention = async (): Promise<RetentionConfig | null> => getRetentionConfig();
