@@ -4,6 +4,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
 import { RetentionInput, RetentionInputSchema } from "../schema/retention";
+import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
 
 export type CongestionRecordInput = {
   location: string;
@@ -414,6 +415,20 @@ export const saveRetentionConfig = async (input: RetentionInput, updatedBy: stri
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy,
   });
+};
+
+// 基準値の計算に使う設定。ドキュメントが無ければnullを返し、呼び出し側がコードの既定値を使う。
+// 項目ごとの検証はresolveSettingsで行うので、ここでは全体の形だけを見る。
+export const getBaselineConfig = async (): Promise<BaselineConfig | null> => {
+  const doc = await db.collection("config").doc("baseline").get();
+  if (!doc.exists) return null;
+
+  const parsed = BaselineConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/baseline:", parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
 };
 
 export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
