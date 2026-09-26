@@ -5,6 +5,7 @@ import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
 import { RetentionInput, RetentionInputSchema } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
+import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 
 export type CongestionRecordInput = {
   location: string;
@@ -419,6 +420,61 @@ export const saveRetentionConfig = async (input: RetentionInput, updatedBy: stri
 
 // 基準値の計算に使う設定。ドキュメントが無ければnullを返し、呼び出し側がコードの既定値を使う。
 // 項目ごとの検証はresolveSettingsで行うので、ここでは全体の形だけを見る。
+// 1日分の記録を読む。locationとweekdayの等価、windowStartの範囲なので、既存の複合インデックスに収まる。
+export const getCongestionRecordsForDay = async (
+  location: string,
+  weekday: number,
+  start: Timestamp,
+  end: Timestamp,
+): Promise<CongestionRecord[]> => {
+  const snapshot = await db.collection("congestion_records")
+    .where("location", "==", location)
+    .where("weekday", "==", weekday)
+    .where("windowStart", ">=", start)
+    .where("windowStart", "<", end)
+    .get();
+
+  const result: CongestionRecord[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = CongestionRecordSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in congestion_records document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
+
+const dailySummaryDocId = (location: string, date: string): string => `${sanitizeForDocId(location)}__${date}`;
+
+// 複数の日をまとめて読む。getAllは1回の呼び出しで済み、存在しない日はnullで返す。
+export const getDailySummaries = async (location: string, dates: string[]): Promise<Map<string, DailySummary>> => {
+  const result = new Map<string, DailySummary>();
+  if (dates.length === 0) return result;
+
+  const refs = dates.map(date => db.collection("daily_summaries").doc(dailySummaryDocId(location, date)));
+  const docs = await db.getAll(...refs);
+
+  for (const doc of docs) {
+    if (!doc.exists) continue;
+    const parsed = DailySummarySchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in daily_summaries document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.set(parsed.data.date, parsed.data);
+  }
+  return result;
+};
+
+export const saveDailySummary = async (summary: DailySummaryInput): Promise<void> => {
+  await db.collection("daily_summaries").doc(dailySummaryDocId(summary.location, summary.date)).set({
+    ...summary,
+    computedAt: FieldValue.serverTimestamp(),
+  });
+};
+
 export const getBaselineConfig = async (): Promise<BaselineConfig | null> => {
   const doc = await db.collection("config").doc("baseline").get();
   if (!doc.exists) return null;
