@@ -1,8 +1,9 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
+import { RetentionInput, RetentionInputSchema } from "../schema/retention";
 
 export type CongestionRecordInput = {
   location: string;
@@ -385,6 +386,34 @@ export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> =
     return DEFAULT_FILTER_PIPELINE_CONFIG;
   }
   return parsed.data;
+};
+
+// BigQueryの保持期間の設定。実際の保持期間はBigQuery側のパーティションの有効期限で決まり、
+// ここには最後に適用できた値を残す。
+const RetentionConfigSchema = RetentionInputSchema.extend({
+  updatedAt: z.instanceof(Timestamp),
+  updatedBy: z.string().nullable(), // 認証が入るまではnull
+});
+export type RetentionConfig = z.infer<typeof RetentionConfigSchema>;
+
+export const getRetentionConfig = async (): Promise<RetentionConfig | null> => {
+  const doc = await db.collection("config").doc("retention").get();
+  if (!doc.exists) return null;
+
+  const parsed = RetentionConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/retention:", parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
+export const saveRetentionConfig = async (input: RetentionInput, updatedBy: string | null): Promise<void> => {
+  await db.collection("config").doc("retention").set({
+    ...input,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy,
+  });
 };
 
 export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
