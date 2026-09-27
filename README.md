@@ -4,6 +4,20 @@
 ESP32 から送信される BLE 検知データを処理し、Firestore への保存およびサイネージ・アプリ向けの混雑度データ提供を行います。
 
 
+## API の仕様（Swagger）
+公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
+
+* `GET /doc` - OpenAPI（3.0）の JSON
+* `GET /ui` - Swagger UI。ブラウザで開くと、仕様を見て、その場で試せる。ローカルなら `http://localhost:8080/ui`
+  （起動の仕方は「ローカル開発・テスト手順」）
+* 載るのは公開するサービス（`ingest`とローカル）のルートだけ。内部用のルート（`/aggregate`、`/pubsub/scan-events`、
+  `/internal/batch/calc-max-device`）は載らず、`worker`には`/doc`も`/ui`も無い
+* リクエストとレスポンスのスキーマは`src/schema/api/`にある。レスポンスがスキーマに合っているかは、エンドポイントの
+  テストで確かめている
+* `/receiveSensorData`は、仕様への登録だけで、処理はこれまでどおり。APIキーの確認より先にボディの検証が動かないよう
+  にするため
+
+
 ## お約束
 
 ### Github
@@ -79,10 +93,21 @@ src/
 │   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
 │   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
 ├── schema/                # Zodスキーマ・型定義
-│   ├── sensor_data.ts
+│   ├── api/               # 公開するエンドポイントのリクエストとレスポンス(swaggerとhono rpcで共有)
+│   │   ├── common.ts      # エラーのレスポンス、/health
+│   │   ├── signage.ts     # /getCongestion, /getCongestionHistory, /signage/assets
+│   │   └── sensor.ts      # /receiveSensorData のレスポンス
+│   ├── sensor_data.ts     # /receiveSensorData のリクエスト
 │   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
 │   ├── aggregate_run.ts   # 集計結果の履歴(BigQueryのaggregate_runsテーブルに対応)
-│   ├── retention.ts       # BigQueryの保持期間の設定
+│   ├── congestion_record.ts # congestion_records
+│   ├── max_device.ts      # max_devices
+│   ├── node_status.ts     # node_health_stats
+│   ├── pr_asset.ts        # prAssets
+│   ├── scan_diagnostics.ts # scan_diagnostics
+│   ├── pending_scan_event.ts # pending_scans
+│   ├── filter_pipeline.ts # フィルタの段の設定、config/filter_pipeline
+│   ├── retention.ts       # BigQueryの保持期間の設定、config/retention
 │   ├── baseline_settings.ts # 基準値の設定と、コードに書いた既定値
 │   ├── daily_summary.ts   # daily_summaries
 │   └── excluded_day.ts    # excluded_records
@@ -147,6 +172,8 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 ## 主な機能・エンドポイント
 
 > Base URL: `まだデプロイしてない`
+
+エンドポイントの仕様は、Swagger UI（`/ui`）でも見られる（上記「API の仕様（Swagger）」）。
 
 ### 1. GET /health
 死活監視用のエンドポイント。
