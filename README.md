@@ -52,12 +52,15 @@ src/
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
 │   ├── pubsub_push.ts     # /pubsub/scan-events（Pub/Subのプッシュを受けてpending_scansに保存）
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
-│   └── batch.ts           # /internal/batch/calc-max-device
+│   └── batch.ts           # /internal/batch/calc-max-device（未実装）
 ├── services/              # ビジネスロジック
 │   ├── congestion.ts      # 混雑度レベル(1〜9)の判定（toLevel）
 │   ├── scan_service.ts    # BLEスキャンデータの正規化・集計・重複排除
 │   ├── parseRawData.ts    # BLEアドバタイジング生データのパース
 │   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
+│   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ（未実装）
+├── repositories/          # Firestoreへの読み書きのみ
+│   └── firestore.ts
 │   ├── mac.ts             # macアドレスの正規化・ハッシュ化(HMAC-SHA256)・アドレス種別の推定
 │   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
 │   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
@@ -135,13 +138,16 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 
 | ドキュメント | 用途 | 必須/任意 |
 | --- | --- | --- |
+| `config/locations` | location一覧（`{ ids: string[] }`）。以前は`/aggregate`が集計対象の決定に読んでいたが、現在はどの処理も読んでいない（`getLocationIds`は定義だけ残っている）。基準値計算バッチ（未実装）で使うかは未定 | 不要。無くても`/aggregate`は動く |
+| `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
+| `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチ（未実装）の統計的な有効日判定より優先して適用する予定 | 任意。無ければ統計判定のみで動作する予定 |
 | `config/locations` | location一覧（`{ ids: string[] }`）。現在はどの処理も読んでいない。`/aggregate`はデータが届いたlocationを、基準値計算バッチは直近24時間の`congestion_records`を使う | 不要 |
 | `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
 | `config/retention` | BigQueryの保持期間（`scanEventsDays`。`null`は無期限）。最後に適用できた値を残すもので、実際の保持期間はBigQuery側のパーティションの有効期限で決まる | 任意。無ければ未設定（無期限） |
 | `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。**未実装**（統計判定のみで動作する） |
 | `config/baseline` | 基準値計算バッチの設定。`defaults`（全体）と`locations.{location}`（locationごとの上書き）を持つ | 任意。無ければコードに書いた既定値を使う |
 
-`max_devices/{location}_{weekday}` は、基準値計算バッチが自動生成するまでの間（運用開始直後・長期休業明けなど）、手動でFirestoreコンソールから投入する必要がある場合がある（下記「基準値の手動投入」参照）。
+`max_devices/{location}_{weekday}` を書くバッチは未実装なので、現状は手動でFirestoreコンソールから投入する必要がある（下記「基準値の手動投入」参照）。
 
 
 ## 主な機能・エンドポイント
@@ -214,11 +220,14 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
   "locationCount": 2
 }
 ```
-* `config/locations`に登録されている全location分の`congestion_records`を毎回必ず書く。デバイスが1台も検出され
-  なかったlocationについても`uniqueDeviceCount: 0`で明示的に記録する（後続の基準値計算バッチが、ノード停止によ
-  る欠測と「誰もいなかった」を区別するために必要）
+* その回にスキャンデータが届いたlocation分だけ`congestion_records`を書く。ESP32は検出0件でも`devices: []`で
+  POSTしてくる前提で、その場合は`uniqueDeviceCount: 0`で記録される。ノードが全て止まって何も届かなかった
+  locationは記録されない（欠測。基準値計算バッチで「誰もいなかった」と区別するために必要）
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
+
+### 4. POST /internal/batch/calc-max-device
+**未実装**。以下は仕様の案。
 * そのとき使ったフィルタの設定のハッシュ（`configHash`）を、`congestion_records`に記録する。設定を変えると台数の
   意味が変わるため、どの設定で数えた値かを後から見分けられるようにする。この項目が無い既存のレコードも読める
 * 集計結果の履歴を、`AGGREGATE_RUNS_TOPIC`にpublishする（BigQueryの`aggregate_runs`用）。1回の集計につき1件で、
@@ -384,14 +393,14 @@ macアドレスと`rawData`が入るため）。
 | `cafeteria` | 学内食堂 | 左側「食堂の混雑状況」 | 食堂用の ESP32 から送信 |
 | `bus_stop` | バス停留所 | 右下「バス停の混雑状況」 | バス停用の ESP32 から送信 |
 
-`config/locations`にもこの一覧を反映させること（デプロイ前必須）。
+`config/locations`は現状どの処理にも読まれないので、この一覧の反映は不要。
 
 ## 基準値（max_devices）の手動投入
 
-基準値計算バッチが初めて成功するまでの間（運用開始直後・長期休業明け直後）は、`GET /getCongestion`が
+基準値計算バッチは未実装なので、手動で投入するまで（運用開始直後・長期休業明け直後を含む）、`GET /getCongestion`が
 `level: null`（キャリブレーション中）を返し続ける。デモ等で暫定的にlevelを出したい場合は、Firestoreコンソール
-から`max_devices/{location}_{weekday}`を手動で作成する。フィールド構成は`max_devices_batch.ts`が書き込む
-形式（`baseline`, `percentile`, `p50`, `p05`, `windowStartHour`, `windowEndHour`, `sampleDays`,
+から`max_devices/{location}_{weekday}`を手動で作成する。フィールド構成は`MaxDeviceSchema`
+（`repositories/firestore.ts`）の形式（`baseline`, `percentile`, `p50`, `p05`, `windowStartHour`, `windowEndHour`, `sampleDays`,
 `sampleCount`, `lookbackWeeks`, `oldestSampleDate`, `refMedian`, `computedAt`）に合わせ、手動投入である
 ことが分かるよう`sampleDays: 0`とする。
 
