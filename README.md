@@ -60,11 +60,14 @@ src/
 │   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
 │   ├── mac.ts             # macアドレスの正規化・ハッシュ化(HMAC-SHA256)・アドレス種別の推定
 │   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
+│   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
+│   ├── analysis.ts        # 生データから、指定した設定で窓・locationごとの台数を数え直す
 │   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)
 │   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
-├── repositories/          # Firestore, Pub/Subへの読み書きのみ
+├── repositories/          # Firestore, Pub/Sub, BigQueryへの読み書きのみ
 │   ├── firestore.ts
-│   └── pubsub.ts          # メッセージをPub/Subのトピックにpublish
+│   ├── pubsub.ts          # メッセージをPub/Subのトピックにpublish
+│   └── bigquery.ts        # 課金の上限を付けてクエリを実行
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
 │   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
@@ -76,9 +79,12 @@ src/
 └── lib/
     ├── firebase.ts        # Firebase Admin SDKの初期化
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
-    └── pubsub.ts          # Pub/Subクライアントの初期化
+    ├── pubsub.ts          # Pub/Subクライアントの初期化
+    └── bigquery.ts        # BigQueryクライアントの初期化、テーブル名と課金の上限
 ```
 
+`cloud/bigquery/scan_events.schema.json`は、BigQueryのテーブル`scan_events`の列の定義。`ScanEventSchema`との突き合わせテストで使う。
+BigQueryサブスクリプションでメタデータの書き込みを有効にするので、`message_id`などの列も含む。
 `cloud/bigquery/`の`scan_events.schema.json`と`aggregate_runs.schema.json`は、BigQueryのテーブルの列の定義。
 `ScanEventSchema`、`AggregateRunSchema`との突き合わせテスト（`src/testing/bq_schema.ts`）で使う。
 
@@ -91,6 +97,8 @@ src/
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
+| `BQ_DATASET` | BigQueryのデータセット名。テストではテスト用のデータセットに切り替える | `fnaf_analytics` |
+| `BQ_MAX_BYTES_BILLED` | 1回のクエリで課金されるバイト数の上限。未設定なら5GiB。超えるクエリは実行されずに失敗する | `5368709120` |
 | `AGGREGATE_RUNS_TOPIC` | 集計結果の履歴をpublishするPub/Subのトピック名。未設定なら履歴をpublishしない（トピックを作る前でもデプロイできる） | `aggregate-runs` |
 | `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
 
@@ -335,6 +343,17 @@ Firestoreエミュレータを自動起動してJestテストを実行します�
 npm test
 ```
 ローカルに `firebase` CLI（[`firebase-tools`](https://www.npmjs.com/package/firebase-tools)）が必要です。未インストールの場合は `npm install -g firebase-tools` するか、`npx firebase-tools ...` に置き換えてください。
+
+### 5. SQLの突き合わせテスト（本物のBigQueryを使う）
+同じテストデータをTSの集計とSQLの両方に通し、窓・locationごとの台数と各段の通過数が一致するかを確かめる。
+エミュレータが無いので、本物のBigQueryで実行する。`npm test`には含まれず、CIでも動かない。
+```bash
+gcloud auth application-default login
+GCLOUD_PROJECT=fun-now-and-future BQ_DATASET=fnaf_analytics_test npm run test:sql
+```
+* `BQ_DATASET`は、名前が`_test`で終わるデータセットのときだけ実行する。本番のデータセットを誤って指定しないため
+* テスト用のデータセットのテーブル`scan_events`は、実行のたびに作り直される
+* `BQ_DATASET`が無いときは、テストデータの確認だけを行い、BigQueryを使う部分は飛ばす
 
 
 ## Dockerでのビルド・起動

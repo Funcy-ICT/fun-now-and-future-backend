@@ -6,6 +6,7 @@
     "start": "node lib/index.js",
     "dev": "tsx watch src/index.ts",
     "test": "firebase emulators:exec --only firestore,pubsub --project demo-fnaf \"jest\"",
+    "test:sql": "jest --config jest.sql.config.js",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -13,6 +14,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@google-cloud/bigquery": "^9.1.0",
     "@google-cloud/pubsub": "^6.1.0",
     "@hono/node-server": "^2.0.12",
     "firebase-admin": "^13.6.0",
