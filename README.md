@@ -51,13 +51,13 @@ src/
 ├── controllers/           # HTTPの受け口（リクエスト検証・レスポンス整形）
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
-│   └── batch.ts           # /internal/batch/calc-max-device
+│   └── batch.ts           # /internal/batch/calc-max-device（未実装）
 ├── services/              # ビジネスロジック
 │   ├── congestion.ts      # 混雑度レベル(1〜9)の判定（toLevel）
 │   ├── scan_service.ts    # BLEスキャンデータの正規化・集計・重複排除
 │   ├── parseRawData.ts    # BLEアドバタイジング生データのパース
 │   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
-│   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
+│   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ（未実装）
 ├── repositories/          # Firestoreへの読み書きのみ
 │   └── firestore.ts
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
@@ -86,9 +86,9 @@ src/
 | --- | --- | --- |
 | `config/locations` | location一覧（`{ ids: string[] }`）。以前は`/aggregate`が集計対象の決定に読んでいたが、現在はどの処理も読んでいない（`getLocationIds`は定義だけ残っている）。基準値計算バッチ（未実装）で使うかは未定 | 不要。無くても`/aggregate`は動く |
 | `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
-| `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。無ければ統計判定のみで動作する |
+| `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチ（未実装）の統計的な有効日判定より優先して適用する予定 | 任意。無ければ統計判定のみで動作する予定 |
 
-`max_devices/{location}_{weekday}` は、基準値計算バッチが自動生成するまでの間（運用開始直後・長期休業明けなど）、手動でFirestoreコンソールから投入する必要がある場合がある（下記「基準値の手動投入」参照）。
+`max_devices/{location}_{weekday}` を書くバッチは未実装なので、現状は手動でFirestoreコンソールから投入する必要がある（下記「基準値の手動投入」参照）。
 
 
 ## 主な機能・エンドポイント
@@ -168,6 +168,7 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
 
 ### 4. POST /internal/batch/calc-max-device
+**未実装**。以下は仕様の案。
 `congestion_records`の履歴から、locationごと・曜日ごとの基準値（`max_devices`）を算出する日次バッチ。Cloud
 Schedulerから1日1回（04:00 JST想定）呼び出されることを想定した内部エンドポイント。
 * 認証 - **現状なし**（`/aggregate`と同じ既知の課題）
@@ -255,10 +256,10 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 
 ## 基準値（max_devices）の手動投入
 
-基準値計算バッチが初めて成功するまでの間（運用開始直後・長期休業明け直後）は、`GET /getCongestion`が
+基準値計算バッチは未実装なので、手動で投入するまで（運用開始直後・長期休業明け直後を含む）、`GET /getCongestion`が
 `level: null`（キャリブレーション中）を返し続ける。デモ等で暫定的にlevelを出したい場合は、Firestoreコンソール
-から`max_devices/{location}_{weekday}`を手動で作成する。フィールド構成は`max_devices_batch.ts`が書き込む
-形式（`baseline`, `percentile`, `p50`, `p05`, `windowStartHour`, `windowEndHour`, `sampleDays`,
+から`max_devices/{location}_{weekday}`を手動で作成する。フィールド構成は`MaxDeviceSchema`
+（`repositories/firestore.ts`）の形式（`baseline`, `percentile`, `p50`, `p05`, `windowStartHour`, `windowEndHour`, `sampleDays`,
 `sampleCount`, `lookbackWeeks`, `oldestSampleDate`, `refMedian`, `computedAt`）に合わせ、手動投入である
 ことが分かるよう`sampleDays: 0`とする。
 
