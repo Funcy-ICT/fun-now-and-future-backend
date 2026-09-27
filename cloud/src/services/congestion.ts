@@ -1,4 +1,4 @@
-import { MaxDeviceData } from "../repositories/firestore";
+import { MaxDeviceData } from "../schema/max_device";
 import { getLatestCongestionRecord } from "../repositories/firestore";
 import { getCongestionRecordHistory } from "../repositories/firestore";
 import { getMaxDevice } from "../repositories/firestore";

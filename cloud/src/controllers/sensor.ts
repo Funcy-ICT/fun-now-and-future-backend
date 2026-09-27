@@ -17,8 +17,8 @@ import {
   deleteStalePendingScans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
-  CongestionRecordInput,
 } from "../repositories/firestore";
+import { CongestionRecordInput } from "../schema/congestion_record";
 
 
 

@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { buildDailySummary, isSummaryStale } from "./services/daily_summary";
-import { CongestionRecord } from "./repositories/firestore";
+import { CongestionRecord } from "./schema/congestion_record";
 import { DEFAULT_BASELINE_SETTINGS } from "./schema/baseline_settings";
 
 // 日本時間のhh:mmの窓

@@ -1,5 +1,5 @@
 import { buildStageCte, buildAnalysisQuery } from "./services/analysis_sql";
-import { StageConfig } from "./services/scan_service";
+import { StageConfig } from "./schema/filter_pipeline";
 
 describe("buildStageCte", () => {
 	test("dedupeは、窓とlocationとmacごとにrssiが最も強い行を残す", () => {

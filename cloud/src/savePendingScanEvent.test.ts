@@ -1,6 +1,7 @@
 import { db } from "./lib/firebase";
 import { Timestamp } from "firebase-admin/firestore";
-import { savePendingScanEvent, pendingScanDocId, PendingScanEventSchema } from "./repositories/firestore";
+import { savePendingScanEvent, pendingScanDocId } from "./repositories/firestore";
+import { PendingScanEventSchema } from "./schema/pending_scan_event";
 import { ScanEvent } from "./schema/scan_event";
 
 const event = (overrides: Partial<ScanEvent> = {}): ScanEvent => ({

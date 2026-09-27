@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { StageConfig } from "./scan_service";
+import { StageConfig } from "../schema/filter_pipeline";
 
 // キーの順序が違うだけで別のハッシュにならないよう、オブジェクトのキーを名前順に並べ替える。
 // 段の順序は最終的な台数を変えるので、配列の順序はそのまま保つ。

@@ -1,4 +1,4 @@
-import { PrAsset } from "../repositories/firestore";
+import { PrAsset } from "../schema/pr_asset";
 import { getApprovedPrAssets } from "../repositories/firestore";
 
 

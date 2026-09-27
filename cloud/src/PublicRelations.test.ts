@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { isPublished } from "./services/PublicRelations";
-import { PrAsset } from "./repositories/firestore";
+import { PrAsset } from "./schema/pr_asset";
 
 const baseAsset: PrAsset = {
   id: "asset-1",

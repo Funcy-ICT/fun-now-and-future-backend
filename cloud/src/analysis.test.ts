@@ -1,5 +1,5 @@
 import { toWindowResults } from "./services/analysis";
-import { StageConfig } from "./services/scan_service";
+import { StageConfig } from "./schema/filter_pipeline";
 
 const stages: StageConfig[] = [
 	{ name: "dedupe" },
