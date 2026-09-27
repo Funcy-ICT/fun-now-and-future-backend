@@ -6,6 +6,7 @@ import { StageConfigSchema } from "../services/scan_service";
 import { RetentionInput, RetentionInputSchema } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
+import { ExcludedDayInput } from "../schema/excluded_day";
 
 export type CongestionRecordInput = {
   location: string;
@@ -472,6 +473,30 @@ export const saveDailySummary = async (summary: DailySummaryInput): Promise<void
   await db.collection("daily_summaries").doc(dailySummaryDocId(summary.location, summary.date)).set({
     ...summary,
     computedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+// 基準値の計算対象にするlocation。Firestoreにdistinctが無いので、直近の記録から重複を除いて取る。
+// 事前登録(config/locations)は使わない(issue #32でaggregateから外したため)。
+export const getRecentLocations = async (since: Timestamp): Promise<string[]> => {
+  const snapshot = await db.collection("congestion_records").where("windowStart", ">=", since).get();
+  return [...new Set(snapshot.docs.map(doc => doc.data().location as string))];
+};
+
+export type MaxDeviceInput = Omit<MaxDeviceData, "computedAt">;
+
+// 発行しない場合はこの関数を呼ばない。未発行ならドキュメントが無いまま、発行済みなら既存の値が残る(issue #24 Decision 7)。
+export const saveMaxDevice = async (maxDevice: MaxDeviceInput): Promise<void> => {
+  await db.collection("max_devices").doc(`${sanitizeForDocId(maxDevice.location)}_${maxDevice.weekday}`).set({
+    ...maxDevice,
+    computedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+export const saveExcludedDay = async (excluded: ExcludedDayInput): Promise<void> => {
+  await db.collection("excluded_records").doc(`${sanitizeForDocId(excluded.location)}__${excluded.date}`).set({
+    ...excluded,
+    evaluatedAt: FieldValue.serverTimestamp(),
   });
 };
 
