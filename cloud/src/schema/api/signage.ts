@@ -1,4 +1,5 @@
-import { z } from "zod";
+// .openapi() で swagger に出す名前を付けるため、z は @hono/zod-openapi から読む(zod を拡張した同じもの)
+import { z } from "@hono/zod-openapi";
 
 // GET /getCongestion のクエリ
 export const LocationQuerySchema = z.object({
@@ -18,17 +19,17 @@ export const CongestionStatusSchema = z.object({
   uniqueDeviceCount: z.number().int().nonnegative(),
   level: z.number().int().min(1).max(9).nullable(),
   stale: z.boolean(), // 直近15分以内にデータが更新されていなければtrue
-});
+}).openapi("CongestionStatus");
 export type CongestionStatus = z.infer<typeof CongestionStatusSchema>;
 
 // GET /getCongestion のレスポンス(200)
 export const CongestionResponseSchema = z.object({
   status: z.literal("success"),
   data: CongestionStatusSchema,
-});
+}).openapi("CongestionResponse");
 
 // 履歴の1件。過去のデータに同じ意味を持たないので、staleは含めない
-export const CongestionHistoryEntrySchema = CongestionStatusSchema.omit({ stale: true });
+export const CongestionHistoryEntrySchema = CongestionStatusSchema.omit({ stale: true }).openapi("CongestionHistoryEntry");
 export type CongestionHistoryEntry = z.infer<typeof CongestionHistoryEntrySchema>;
 
 // GET /getCongestionHistory のレスポンス(200)
@@ -36,7 +37,7 @@ export const CongestionHistoryResponseSchema = z.object({
   status: z.literal("success"),
   count: z.number().int().nonnegative(),
   data: z.array(CongestionHistoryEntrySchema),
-});
+}).openapi("CongestionHistoryResponse");
 
 // 掲載中の広報アセット。実体は返さず、公開バケット上のURLを返す
 export const PrAssetDtoSchema = z.object({
@@ -45,10 +46,10 @@ export const PrAssetDtoSchema = z.object({
   contentType: z.string(),
   url: z.url(),
   publishUntil: z.iso.datetime().nullable(), // nullなら無期限
-});
+}).openapi("PrAsset");
 export type PrAssetDto = z.infer<typeof PrAssetDtoSchema>;
 
 // GET /signage/assets のレスポンス(200)
 export const SignageAssetsResponseSchema = z.object({
   assets: z.array(PrAssetDtoSchema),
-});
+}).openapi("SignageAssetsResponse");
