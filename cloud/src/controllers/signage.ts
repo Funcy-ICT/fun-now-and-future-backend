@@ -1,17 +1,9 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { getCongestionStatus } from "../services/congestion";
 import { getCongestionHistoryStatus } from "../services/congestion";
 import { listPublishedPrAssets } from "../services/PublicRelations";
 import { signageAuthMiddleware } from "../middlewares/signage_auth";
-
-const LocationQuerySchema = z.object({
-  location: z.string().min(1, "location query parameter is required"),
-});
-
-const HistoryQuerySchema = LocationQuerySchema.extend({
-  limit: z.coerce.number().int().min(1).max(50).default(50),
-});
+import { HistoryQuerySchema, LocationQuerySchema } from "../schema/api/signage";
 
 export const congestionRoute = new Hono();
 

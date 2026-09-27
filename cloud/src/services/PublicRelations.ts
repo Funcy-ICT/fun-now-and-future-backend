@@ -1,5 +1,6 @@
 import { PrAsset } from "../schema/pr_asset";
 import { getApprovedPrAssets } from "../repositories/firestore";
+import { PrAssetDto } from "../schema/api/signage";
 
 
 export const isPublished = (asset: PrAsset, now: Date): boolean => {
@@ -7,14 +8,6 @@ export const isPublished = (asset: PrAsset, now: Date): boolean => {
   if (now < asset.publishFrom.toDate()) return false;
   if (asset.publishUntil !== null && now > asset.publishUntil.toDate()) return false;
   return true;
-};
-
-export type PrAssetDto = {
-  id: string;
-  title: string;
-  contentType: string;
-  url: string;
-  publishUntil: string | null;
 };
 
 const buildAssetUrl = (id: string): string => {
