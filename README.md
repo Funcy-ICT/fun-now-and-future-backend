@@ -4,20 +4,6 @@
 ESP32 から送信される BLE 検知データを処理し、Firestore への保存およびサイネージ・アプリ向けの混雑度データ提供を行います。
 
 
-## API の仕様（Swagger）
-公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
-
-* `GET /doc` - OpenAPI（3.0）の JSON
-* `GET /ui` - Swagger UI。ブラウザで開くと、仕様を見て、その場で試せる。ローカルなら `http://localhost:8080/ui`
-  （起動の仕方は「ローカル開発・テスト手順」）
-* 載るのは公開するサービス（`ingest`とローカル）のルートだけ。内部用のルート（`/aggregate`、`/pubsub/scan-events`、
-  `/internal/batch/calc-max-device`）は載らず、`worker`には`/doc`も`/ui`も無い
-* リクエストとレスポンスのスキーマは`src/schema/api/`にある。レスポンスがスキーマに合っているかは、エンドポイントの
-  テストで確かめている
-* `/receiveSensorData`は、仕様への登録だけで、処理はこれまでどおり。APIキーの確認より先にボディの検証が動かないよう
-  にするため
-
-
 ## お約束
 
 ### Github
@@ -173,7 +159,17 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 
 > Base URL: `まだデプロイしてない`
 
-エンドポイントの仕様は、Swagger UI（`/ui`）でも見られる（上記「API の仕様（Swagger）」）。
+### API の仕様（Swagger）
+公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
+
+* `GET /doc` - OpenAPI（3.0）の JSON
+* `GET /ui` - Swagger UI。ブラウザで開くと、仕様を見て、その場で試せる。ローカルなら `http://localhost:8080/ui`
+* 載るのは公開するサービス（`ingest`とローカル）のルートだけ。内部用のルート（`/aggregate`、`/pubsub/scan-events`、
+  `/internal/batch/calc-max-device`）は載らず、`worker`には`/doc`も`/ui`も無い
+* リクエストとレスポンスのスキーマは`src/schema/api/`にある。レスポンスがスキーマに合っているかは、エンドポイントの
+  テストで確かめている
+* `/receiveSensorData`は、仕様への登録だけで、処理はこれまでどおり。APIキーの確認より先にボディの検証が動かないよう
+  にするため
 
 ### 1. GET /health
 死活監視用のエンドポイント。
@@ -437,12 +433,25 @@ npm run build
 ```
 
 ### 3. ローカルでサーバーを起動
+`SERVICE_ROLE`が未設定だと受信のルートも載るので、`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`が無いと起動に失敗する。
+ローカルでは、ダミーの値を渡す。
 ```bash
-npm start
-# または
-node lib/index.js
+MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events npm start
 ```
-`http://localhost:8080` で待ち受けます（`PORT`環境変数で変更可）。
+`http://localhost:8080` で待ち受けます（`PORT`環境変数で変更可）。`/ui`でSwagger UIを開ける。
+* 鍵は、起動のたびにランダムなダミーを作る。本物の鍵を、コマンドの履歴やファイルに残さないため
+* Swagger UIの「Try it out」で、Firestoreを読むルート（`/getCongestion`など）を試すときは、エミュレータを起動して
+  `FIRESTORE_EMULATOR_HOST`を渡す。エミュレータも8080番を使うので、サーバーは`PORT`を変える。渡さないと、本物の
+  プロジェクトにつなぎに行くことがある
+  ```bash
+  firebase emulators:start --only firestore --project demo-fnaf
+  # 別のターミナルで
+  FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-fnaf PORT=3000 \
+    MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events npm start
+  ```
+  このときのSwagger UIは`http://localhost:3000/ui`
+* `/receiveSensorData`は、ローカルでは試せない。Pub/Subにpublishするが、`firebase.json`にPub/Subのエミュレータの
+  設定が無いため
 
 ### 4. 単体テストの実行
 Firestoreエミュレータを自動起動してJestテストを実行します。
@@ -468,7 +477,7 @@ GCLOUD_PROJECT=fun-now-and-future BQ_DATASET=fnaf_analytics_test npm run test:sq
 ```bash
 cd cloud
 docker build -t fun-now-and-future-backend .
-docker run -p 8080:8080 fun-now-and-future-backend
+docker run -p 8080:8080 -e MAC_HASH_KEY=$(openssl rand -hex 32) -e SCAN_EVENTS_TOPIC=scan-events fun-now-and-future-backend
 curl http://localhost:8080/health
 ```
 
