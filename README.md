@@ -62,6 +62,7 @@ src/
 │   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
 │   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
 │   ├── analysis.ts        # 生データから、指定した設定で窓・locationごとの台数を数え直す
+│   ├── retention.ts       # BigQueryの保持期間(パーティションの有効期限)の変更
 │   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)
 │   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
 ├── repositories/          # Firestore, Pub/Sub, BigQueryへの読み書きのみ
@@ -75,7 +76,8 @@ src/
 ├── schema/                # Zodスキーマ・型定義
 │   ├── sensor_data.ts
 │   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
-│   └── aggregate_run.ts   # 集計結果の履歴(BigQueryのaggregate_runsテーブルに対応)
+│   ├── aggregate_run.ts   # 集計結果の履歴(BigQueryのaggregate_runsテーブルに対応)
+│   └── retention.ts       # BigQueryの保持期間の設定
 └── lib/
     ├── firebase.ts        # Firebase Admin SDKの初期化
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
@@ -125,6 +127,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 | --- | --- | --- |
 | `config/locations` | 集計対象のlocation一覧（`{ ids: string[] }`）。`/aggregate`と基準値計算バッチが、どのlocationを処理対象とするかをここから読む | **必須**。無いと`/aggregate`がどのlocationも処理せず、`congestion_records`が一切書かれなくなる |
 | `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
+| `config/retention` | BigQueryの保持期間（`scanEventsDays`。`null`は無期限）。最後に適用できた値を残すもので、実際の保持期間はBigQuery側のパーティションの有効期限で決まる | 任意。無ければ未設定（無期限） |
 | `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。無ければ統計判定のみで動作する |
 
 `max_devices/{location}_{weekday}` は、基準値計算バッチが自動生成するまでの間（運用開始直後・長期休業明けなど）、手動でFirestoreコンソールから投入する必要がある場合がある（下記「基準値の手動投入」参照）。
