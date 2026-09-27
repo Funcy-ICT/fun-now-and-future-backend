@@ -3,7 +3,7 @@ import { getCongestionStatus } from "../services/congestion";
 import { getCongestionHistoryStatus } from "../services/congestion";
 import { listPublishedPrAssets } from "../services/PublicRelations";
 import { signageAuthMiddleware } from "../middlewares/signage_auth";
-import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema } from "../schema/api/signage";
+import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema, SignageAssetsResponseSchema } from "../schema/api/signage";
 import { ErrorResponseSchema } from "../schema/api/common";
 
 // swaggerの定義から、リクエストの検証とレスポンスの型が決まる。検証に失敗したときは、これまでと同じ形の400を返す
@@ -76,7 +76,20 @@ congestionRoute.openapi(getCongestionHistoryRoute, async (c) => {
   }, 200);
 })
 
-congestionRoute.get("/signage/assets", signageAuthMiddleware, async (c) => {
+// APIキーの確認はmiddlewareで行う。クエリやボディの検証より先に動くので、キーが無ければ401を返す
+const getSignageAssetsRoute = createRoute({
+  method: "get",
+  path: "/signage/assets",
+  summary: "掲載中の広報アセットの一覧",
+  middleware: [signageAuthMiddleware] as const,
+  security: [{ ApiKeyAuth: [] }],
+  responses: {
+    200: jsonContent(SignageAssetsResponseSchema, "掲載中の広報アセット"),
+    401: jsonContent(ErrorResponseSchema, "APIキーが無い、または違う"),
+  },
+});
+
+congestionRoute.openapi(getSignageAssetsRoute, async (c) => {
   const assets = await listPublishedPrAssets();
-  return c.json({ assets });
+  return c.json({ assets }, 200);
 });
