@@ -161,9 +161,9 @@ ESP32（センサー端末）から BLE 検知データを受信し、Firestore 
   "locationCount": 2
 }
 ```
-* `config/locations`に登録されている全location分の`congestion_records`を毎回必ず書く。デバイスが1台も検出され
-  なかったlocationについても`uniqueDeviceCount: 0`で明示的に記録する（後続の基準値計算バッチが、ノード停止によ
-  る欠測と「誰もいなかった」を区別するために必要）
+* その回にスキャンデータが届いたlocation分だけ`congestion_records`を書く。ESP32は検出0件でも`devices: []`で
+  POSTしてくる前提で、その場合は`uniqueDeviceCount: 0`で記録される。ノードが全て止まって何も届かなかった
+  locationは記録されない（欠測。基準値計算バッチで「誰もいなかった」と区別するために必要）
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
 
