@@ -173,61 +173,27 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 
 > Base URL: `まだデプロイしてない`
 
-エンドポイントの仕様は、Swagger UI（`/ui`）でも見られる（上記「API の仕様（Swagger）」）。
+### 公開するエンドポイント
+リクエストとレスポンスの形、値の範囲、`level`の読み方などの詳細は、Swagger UI（`/ui`）で見る（上記「API の仕様（Swagger）」）。
+説明はコード（`src/schema/api/`、`src/schema/sensor_data.ts`、`src/controllers/`）に書いてあり、ここには書かない。
 
-### 1. GET /health
-死活監視用のエンドポイント。
-```json
-{ "status": "ok", "message": "Backend is running" }
-```
+| ルート | 呼ぶもの | 認証 | 内容 |
+| --- | --- | --- | --- |
+| `GET /health` | 死活監視 | なし | 動いているか |
+| `POST /receiveSensorData` | ESP32 | `x-api-key` | BLEの検出データを受け取り、Pub/Subにpublishする |
+| `GET /getCongestion` | サイネージ、アプリ | なし | 指定したlocationの最新の混雑度 |
+| `GET /getCongestionHistory` | サイネージ、アプリ | なし | 指定したlocationの混雑度の履歴 |
+| `GET /signage/assets` | サイネージ | `x-api-key` | 掲載中の広報アセットの一覧 |
 
-### 2. POST /receiveSensorData
-ESP32（センサー端末）から BLE 検知データを受信し、Pub/Subのトピックにpublishする。
-macアドレスは受信の時点でハッシュ化（HMAC-SHA256）する。rawの場合はパースして、パース結果と`rawData`も含める。
-publishの完了を待ってから200を返す。失敗したら500を返すので、ESP32は再送する。
-`pending_scans`への保存と、BigQueryへの蓄積は、それぞれのサブスクリプションが行う。
-* 認証 - ヘッダー `x-api-key: <API_KEY>`
-* 受け付ける値
-  * `sendId`（任意） - 送信ごとのUUID。再送のときは同じ値を使う。64文字以下
-  * `mac` - 区切り文字と大文字小文字は問わない。12桁の16進数でなければ400（`mac is invalid`）
-  * `rssi` - -127から20まで。範囲外が1台でも含まれると400になり、そのPOST全体が捨てられる
-  * `devices` - 256件まで。0件でもよい
-* リクエストボディ
-- rawDataを送る場合（Wi-Fi環境を想定, クラウドで詳細にパースし分析可能）
-```json
-"nodeId": "esp32_cafeteria_01",
-"location": "cafeteria",
-"devices": [
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:01", "rssi": -60, "rawData": "02011a020a0c" }
-	{ "format": "raw", "mac": "AA:BB:CC:DD:EE:02", "rssi": -60, "rawData": "02010605ffff" }
-]
-```
+* レスポンス契約の詳細は`api_contract_congestion_endpoints.md`（フロント向け）を参照
 
-- パース済みデータを送る場合
-```json
-"nodeId": "esp32_cafeteria_01",
-"location": "cafeteria",
-"devices": [
-	{ "format": "parsed", "mac": "AA:BB:CC:DD:EE:01", "rssi": -72, "companyId": "004C", "isNearbyInfo": true }
-  { "format": "parsed", "mac": "AA:BB:CC:DD:EE:02", "rssi": -72, "companyId": "00E0", "isNearbyInfo": false }
-]
-```
+### 内部用のエンドポイント
+`worker`だけに載る。Swaggerには載らないので、ここに書く。
 
-* レスポンス例 (200 OK)。受信したデータの写しは返さない。ESP32の送受信の時間を短くするため
-```json
-{
-  "status": "success",
-  "message": "Data received successfully",
-  "received_at": "2026-09-20T12:00:00.000Z",
-  "sendId": null
-}
-```
-`sendId`は、リクエストで送られてきた値。無ければ`null`。
-
-### 3. POST /aggregate
+#### 1. POST /aggregate
 窓（5分）の範囲に受信した`pending_scans`のデータを集計し、ロケーションごとの混雑度（`congestion_records`）と
 ノード監視データ（`node_health_stats`）を書き込んで、読んだドキュメントだけを削除する。窓が閉じた1分後に、
-Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した内部エンドポイント（`worker`のみ）。
+Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した内部エンドポイント。
 * 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをCloud Schedulerのサービスアカウントだけに
   許可する。`SERVICE_ROLE`が未設定のローカルでは、認証なしで呼び出せる
 * リクエストボディ - なし
@@ -252,7 +218,7 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
   locationごとの台数と各段の通過数、ノードごとの受信件数、`configHash`、そのとき使った設定（`stagesJson`）を持つ。
   publishに失敗しても集計は止めず、ログに残す
 
-### POST /pubsub/scan-events（`worker`のみ）
+#### 2. POST /pubsub/scan-events
 Pub/Subのプッシュサブスクリプションからメッセージを受け取り、`pending_scans`に保存する。
 * 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをPub/Subのサービスアカウントだけに許可する
 * リクエストボディ - Pub/Subの封筒。`message.data`にScanEventのJSONがbase64で入り、`message.messageId`がある
@@ -261,7 +227,7 @@ Pub/Subのプッシュサブスクリプションからメッセージを受け�
 * `received_at`には、受信エンドポイントが付けた`receivedAt`を使う。処理側で書き込んだ時刻は使わない
 * レスポンス - 成功したら204。封筒やメッセージが不正なら400で、再試行のあとデッドレターに入る
 
-### 4. POST /internal/batch/calc-max-device（`worker`のみ）
+#### 3. POST /internal/batch/calc-max-device
 `congestion_records`の履歴から、locationごと・曜日ごとの基準値（`max_devices`）を算出する日次バッチ。Cloud
 Schedulerから1日1回（04:00 JST想定）呼び出されることを想定した内部エンドポイント。
 * 認証 - コードには無い。`worker`をCloud Runの認証必須にして、呼び出しをCloud Schedulerのサービスアカウントだけに
@@ -272,7 +238,7 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 { "succeeded": 33, "failed": 2, "frozen": 14 }
 ```
 
-#### 計算の手順（`(location, weekday)`ごと）
+##### 計算の手順（`(location, weekday)`ごと）
 
 1. `refMedian`を出す。直近`refMedianWeeks`週の同じ曜日について、その日の稼働時間帯の台数の中央値を求め、その中央値
    を取る。ゲートは通さない。除外した日だけで作ると、出力が入力を決める循環になるため
@@ -291,7 +257,7 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 * 弾いた日は、理由（`incomplete` / `statistical`）と判定に使った数値を`excluded_records`に残す。閾値を実データで
   後から較正するため
 
-#### 設定（`config/baseline`）
+##### 設定（`config/baseline`）
 
 | 項目 | 既定値 | 意味 |
 | --- | --- | --- |
@@ -316,7 +282,7 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 * `baseline >= 9`は設定にしない。9段階の定義から決まる条件のため
 * locationは事前登録しないので、設定に無いlocationは既定値で動く
 
-#### 日ごとのまとめ（`daily_summaries`）
+##### 日ごとのまとめ（`daily_summaries`）
 
 毎日26週分の`congestion_records`を読み直すと、読み取りが1日16万件になり無料枠を超える。1日分を1ドキュメントに
 まとめて、2回目からはそれを読む（1日1,000件程度）。
@@ -324,71 +290,6 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 * `counts`（稼働時間帯の台数を昇順に並べたもの）も持たせるので、`baseline`の計算でも元の記録を読み直さない
 * まとめの稼働時間帯が設定と違う場合は作り直す。設定を変えたときと、過去の台数を書き換えたときのため
 * 1回のバッチで作り直す数には上限（120日分）がある。初回は数日かけて埋まる
-
-### 5. GET /getCongestion
-指定したロケーションの最新の混雑度データを取得します。
-* クエリパラメータ: `location`（必須）
-* レスポンス例 (200 OK)
-```json
-{
-  "status": "success",
-  "data": {
-    "location": "cafeteria",
-    "windowStart": "2026-07-28T07:30:00.000Z",
-    "uniqueDeviceCount": 12,
-    "level": 3,
-    "stale": false
-  }
-}
-```
-* `level`: `1`（空いている）〜`9`（非常に混雑）の整数、または`null`。**同じ場所・同じ曜日の中でのみ意味を持つ
-  相対値であり、別の場所同士を比較することはできない**
-* `level: null`には2つの意味があり、`stale`で区別する: `stale: true`なら直近15分以内にデータが更新されていな
-  い（センサー停止の可能性）、`stale: false`なら最新データは取れているが基準値がまだ計算できていない（運用開
-  始直後・長期休業明け直後のキャリブレーション中）
-* レスポンス契約の詳細は`api_contract_congestion_endpoints.md`（フロント向け）を参照
-
-### 6. GET /getCongestionHistory
-指定したロケーションの**混雑度の履歴データ**を取得。
-* クエリパラメータ: `location`（必須）, `limit`（任意 / デフォルト50件, 最大50件）
-* レスポンス例 (200 OK)
-```json
-{
-  "status": "success",
-  "count": 2,
-  "data": [
-    {
-      "location": "cafeteria",
-      "windowStart": "2026-07-28T07:30:00.000Z",
-      "uniqueDeviceCount": 12,
-      "level": 3
-    }
-  ]
-}
-```
-* 履歴の各要素に`stale`は含まれない（過去のデータに対して同じ意味を持たないため）
-
-### 7. GET /signage/assets
-掲載中の広報アセット（画像・PDF）一覧を取得。実体は返さず、GCS公開バケット上のURLを返す。
-* 認証 - ヘッダー `x-api-key: <API_KEY>`
-* レスポンス例 (200 OK)
-```json
-{
-  "assets": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "title": "秋のコンテスト告知",
-      "contentType": "image/jpeg",
-      "url": "https://storage.googleapis.com/<bucket>/objects/550e8400-...",
-      "publishUntil": "2026-10-31T14:59:59.000Z"
-    }
-  ]
-}
-```
-* 掲載期間内（`status: approved`かつ`publishFrom`〜`publishUntil`の範囲内、または`publishUntil`が`null`で無期限）
-  のアセットのみ返す
-* 投稿・承認の手段は未実装。確認用アセットはFirestoreコンソール・`gcloud storage cp`で手動投入する運用
-
 
 ## BigQueryの保持期間
 
