@@ -45,6 +45,28 @@ describe("swagger", () => {
 	});
 });
 
+describe("説明", () => {
+	//READMEから移した説明。消えると、/uiを見ても意味が分からなくなる
+	test("ルートに、処理の流れの説明がある", async () => {
+		const { doc } = await getDoc("ingest");
+		expect(doc.paths["/receiveSensorData"].post.description).toContain("同じsendIdで再送");
+		expect(doc.paths["/signage/assets"].get.description).toContain("掲載期間内");
+	});
+
+	test("levelとstaleに、nullのときの読み方の説明がある", async () => {
+		const { doc } = await getDoc("ingest");
+		const status = doc.components.schemas.CongestionStatus.properties;
+		expect(status.level.description).toContain("staleで区別する");
+		expect(status.stale.description).toContain("15分");
+	});
+
+	test("リクエストのボディに、例が付いている", async () => {
+		const { doc } = await getDoc("ingest");
+		const body = doc.paths["/receiveSensorData"].post.requestBody.content["application/json"].schema;
+		expect(body.properties.nodeId.example).toBe("esp32_cafeteria_01");
+	});
+});
+
 describe("クエリの検証", () => {
 	test("locationが無ければ、これまでと同じ形の400を返す", async () => {
 		const res = await createApp("ingest").request("/getCongestion");
