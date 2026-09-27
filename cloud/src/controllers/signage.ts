@@ -3,7 +3,7 @@ import { getCongestionStatus } from "../services/congestion";
 import { getCongestionHistoryStatus } from "../services/congestion";
 import { listPublishedPrAssets } from "../services/PublicRelations";
 import { signageAuthMiddleware } from "../middlewares/signage_auth";
-import { CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema } from "../schema/api/signage";
+import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema } from "../schema/api/signage";
 import { ErrorResponseSchema } from "../schema/api/common";
 
 // swaggerの定義から、リクエストの検証とレスポンスの型が決まる。検証に失敗したときは、これまでと同じ形の400を返す
@@ -29,6 +29,18 @@ const getCongestionRoute = createRoute({
   },
 });
 
+const getCongestionHistoryRoute = createRoute({
+  method: "get",
+  path: "/getCongestionHistory",
+  summary: "指定したlocationの混雑度の履歴(新しい順)",
+  request: { query: HistoryQuerySchema },
+  responses: {
+    200: jsonContent(CongestionHistoryResponseSchema, "混雑度の履歴"),
+    400: jsonContent(ErrorResponseSchema, "クエリが不正"),
+    404: jsonContent(ErrorResponseSchema, "該当するデータが無い"),
+  },
+});
+
 congestionRoute.openapi(getCongestionRoute, async (c) => {
   const { location } = c.req.valid("query");
 
@@ -46,25 +58,19 @@ congestionRoute.openapi(getCongestionRoute, async (c) => {
   }, 200);
 })
 
-congestionRoute.get("/getCongestionHistory", async (c) => {
-  const parseResult = HistoryQuerySchema.safeParse(c.req.query());
-  if (!parseResult.success) {
-    return c.json({
-      status: "error",
-      message: parseResult.error.issues[0].message,
-    }, 400);
-  }
+congestionRoute.openapi(getCongestionHistoryRoute, async (c) => {
+  const { location, limit } = c.req.valid("query");
 
-  const history = await getCongestionHistoryStatus(parseResult.data.location, parseResult.data.limit);
+  const history = await getCongestionHistoryStatus(location, limit);
   if (history.length === 0) {
     return c.json({
-      status: "error",
+      status: "error" as const,
       message: "No history data found",
     }, 404);
   }
 
   return c.json({
-    status: "success",
+    status: "success" as const,
     count: history.length,
     data: history,
   }, 200);
