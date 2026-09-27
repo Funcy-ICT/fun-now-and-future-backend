@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { swaggerUI } from "@hono/swagger-ui";
 import { sensorRoute } from "./controllers/sensor";
 import { congestionRoute } from "./controllers/signage";
 import { errorHandler } from "./middlewares/error_handler";
@@ -40,6 +41,22 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
   if (role !== "worker") {
     app.route("/", sensorRoute);
     app.route("/", congestionRoute);
+
+    //swaggerは公開するルートだけを載せる。内部用のルート(workerのもの)はOpenAPIHonoで定義していないので、ここには出ない
+    app.openAPIRegistry.registerComponent("securitySchemes", "ApiKeyAuth", {
+      type: "apiKey",
+      in: "header",
+      name: "x-api-key",
+    });
+    app.doc("/doc", {
+      openapi: "3.0.0",
+      info: {
+        title: "Fun Now and Future API",
+        version: "1.0.0",
+        description: "esp32からの受信と、サイネージ向けのエンドポイント",
+      },
+    });
+    app.get("/ui", swaggerUI({ url: "/doc" }));
   }
 
   //Cloud Runの認証必須にするサービス。Pub/SubとCloud Schedulerだけが呼べるようにする
