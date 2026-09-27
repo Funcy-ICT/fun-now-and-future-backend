@@ -4,6 +4,7 @@ import { congestionRoute } from "./controllers/signage";
 import { errorHandler } from "./middlewares/error_handler";
 import { aggregateRoute } from "./controllers/sensor";
 import { pubsubPushRoute } from "./controllers/pubsub_push";
+import { batchRoute } from "./controllers/batch";
 
 export type ServiceRole = "ingest" | "worker" | "all";
 
@@ -35,6 +36,7 @@ export const createApp = (role: ServiceRole): Hono => {
   if (role !== "ingest") {
     app.route("/", aggregateRoute);
     app.route("/", pubsubPushRoute);
+    app.route("/", batchRoute);
   }
 
   return app;
