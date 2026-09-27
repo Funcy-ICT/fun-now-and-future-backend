@@ -84,7 +84,7 @@ src/
 
 | ドキュメント | 用途 | 必須/任意 |
 | --- | --- | --- |
-| `config/locations` | 集計対象のlocation一覧（`{ ids: string[] }`）。`/aggregate`と基準値計算バッチが、どのlocationを処理対象とするかをここから読む | **必須**。無いと`/aggregate`がどのlocationも処理せず、`congestion_records`が一切書かれなくなる |
+| `config/locations` | location一覧（`{ ids: string[] }`）。以前は`/aggregate`が集計対象の決定に読んでいたが、現在はどの処理も読んでいない（`getLocationIds`は定義だけ残っている）。基準値計算バッチ（未実装）で使うかは未定 | 不要。無くても`/aggregate`は動く |
 | `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
 | `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。無ければ統計判定のみで動作する |
 
@@ -251,7 +251,7 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 | `cafeteria` | 学内食堂 | 左側「食堂の混雑状況」 | 食堂用の ESP32 から送信 |
 | `bus_stop` | バス停留所 | 右下「バス停の混雑状況」 | バス停用の ESP32 から送信 |
 
-`config/locations`にもこの一覧を反映させること（デプロイ前必須）。
+`config/locations`は現状どの処理にも読まれないので、この一覧の反映は不要。
 
 ## 基準値（max_devices）の手動投入
 
