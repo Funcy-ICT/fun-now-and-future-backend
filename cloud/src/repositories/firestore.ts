@@ -1,10 +1,12 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
-import { Timestamp } from "firebase-admin/firestore";
-import { FieldValue } from "firebase-admin/firestore";
-import { SensorData } from "../schema/sensor_data";
-import { SensorDataSchema } from "../schema/sensor_data";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
 import { StageConfigSchema } from "../services/scan_service";
+import { RetentionInput, RetentionInputSchema } from "../schema/retention";
+import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
+import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
+import { ExcludedDayInput } from "../schema/excluded_day";
 
 export type CongestionRecordInput = {
   location: string;
@@ -17,6 +19,8 @@ export const CongestionRecordSchema = z.object({
   weekday: z.number().int().min(0).max(6), // JST基準
   windowStart: z.instanceof(Timestamp),
   uniqueDeviceCount: z.number().int().nonnegative(),
+  // どの設定で数えた値かを見分けるためのハッシュ。この項目が無い既存のレコードも読めるよう、任意にする
+  configHash: z.string().optional(),
 });
 export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
 
@@ -24,21 +28,88 @@ export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
 const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
-// ESP32からのデータを受け取り、Firestoreに保存する関数
-// ESP32のデータを受け取る関数は、functions/src/controllers/sensor.tsのsensorRoute.post("/receiveSensorData")で呼び出されます。
+// pending_scansへの保存は、pub/subのプッシュを受ける処理側(controllers/pubsub_push.ts)が行う。
 
-
-const pendingScanDocSchema = SensorDataSchema.extend({
+// Pub/Subのメッセージ(ScanEvent)をpending_scansに保存した形。受信時刻はTimestampにして、窓の範囲で検索できるようにする。
+export const PendingScanEventSchema = ScanEventSchema.omit({ receivedAt: true }).extend({
   received_at: z.instanceof(Timestamp),
 });
+export type PendingScanEvent = z.infer<typeof PendingScanEventSchema>;
 
-type PendingScansData = z.infer<typeof pendingScanDocSchema>;
+// 同じメッセージが2回届いても、同じドキュメントに上書きされて二重に数えないよう、IDをメッセージから決める。
+// sendIdがあればnodeIdと組にする。無ければpub/subのmessageIdを使う(esp32の再送は防げないが、pub/subの再配信は防げる)。
+export const pendingScanDocId = (event: ScanEvent, messageId: string): string =>
+  event.sendId !== null
+    ? `${sanitizeForDocId(event.nodeId)}__${sanitizeForDocId(event.sendId)}`
+    : `msg__${sanitizeForDocId(messageId)}`;
 
-export const savePendingScan = async (sensorData: SensorData): Promise<void> => {
-  await db.collection("pending_scans").add({
-    ...sensorData,
-    received_at: FieldValue.serverTimestamp(),
+export const savePendingScanEvent = async (event: ScanEvent, messageId: string): Promise<void> => {
+  const { receivedAt, ...rest } = event;
+  await db.collection("pending_scans").doc(pendingScanDocId(event, messageId)).set({
+    ...rest,
+    received_at: Timestamp.fromDate(new Date(receivedAt)),
   });
+};
+
+// 窓の範囲[windowStart, windowEnd)に受信したメッセージだけを読む。読んだドキュメントのIDも返し、削除に使う。
+// 検証に失敗したドキュメントは集計に使わないが、窓の中にあるのでIDには含める。
+export const getPendingScanEventsInWindow = async (
+  windowStart: Timestamp,
+  windowEnd: Timestamp,
+): Promise<{ ids: string[]; scans: PendingScanEvent[] }> => {
+  const snapshot = await db.collection("pending_scans")
+    .where("received_at", ">=", windowStart)
+    .where("received_at", "<", windowEnd)
+    .get();
+
+  const scans: PendingScanEvent[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = PendingScanEventSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in pending_scans document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    scans.push(parsed.data);
+  }
+  return { ids: snapshot.docs.map(doc => doc.id), scans };
+};
+
+// 読んだドキュメントだけを消す。コレクションごと消すと、集計中に届いたデータを数えないまま消してしまう。
+export const deletePendingScansByIds = async (ids: string[]): Promise<void> => {
+  const collectionRef = db.collection("pending_scans");
+  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = db.batch();
+    for (const id of ids.slice(i, i + batchSize)) {
+      batch.delete(collectionRef.doc(id));
+    }
+    await batch.commit();
+  }
+
+  console.info(`Deleted ${ids.length} documents from pending_scans collection.`);
+};
+
+// 窓に間に合わず遅れて届いたデータは、集計の対象にならず、読まれないまま残る。溜まり続けないよう、古いものを消す。
+export const deleteStalePendingScans = async (before: Timestamp): Promise<void> => {
+  const batchSize = 500;
+  let totalDeleted = 0;
+
+  while (true) {
+    const snapshot = await db.collection("pending_scans").where("received_at", "<", before).limit(batchSize).get();
+    if (snapshot.empty) break;
+
+    const batch = db.batch();
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+    totalDeleted += snapshot.size;
+  }
+
+  if (totalDeleted > 0) {
+    console.info(`Deleted ${totalDeleted} stale documents from pending_scans collection.`);
+  }
 };
 
 export async function getLatestSensorData(location: string) {
@@ -136,44 +207,6 @@ export const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): Scan
   };
 }
 
-export const take_out_pending_scans = async (): Promise<PendingScansData[]> => {
-  const result: PendingScansData[] = [];
-  const snapshot = await db.collection("pending_scans").get();
-
-  for (const doc of snapshot.docs) {
-    const docId = doc.id;
-    const parsed = pendingScanDocSchema.safeParse(doc.data());
-    if (!parsed.success) {
-      console.error(`Invalid data in pending_scans document ${docId}:`, parsed.error.issues);
-      continue;
-    }
-    result.push(parsed.data);
-  }
-  return result;
-}
-
-export const delete_pending_scans = async (): Promise<void> => {
-  const collectionRef = db.collection("pending_scans");
-  const batchSize = 500; // Firestoreのバッチ書き込みの上限は500件
-  let totalDeleted = 0;
-
-  while (true) {
-    const snapshot = await collectionRef.limit(batchSize).get();
-    if (snapshot.empty) {
-      break;
-    }
-
-    const batch = db.batch();
-    for (const doc of snapshot.docs) {
-      batch.delete(doc.ref);
-    }
-    await batch.commit();
-    totalDeleted += snapshot.size;
-  }
-
-  console.info(`Deleted ${totalDeleted} documents from pending_scans collection.`);
-}
-
 export const MaxDeviceSchema = z.object({
   location: z.string().min(1, "location is required"),
   weekday: z.number().int().min(0).max(6, "weekday must be between 0 and 6"),
@@ -263,6 +296,7 @@ export const saving_node_health_status = async (stats: NodeStatusData[]): Promis
 export const saveCongestionRecords = async (
   records: CongestionRecordInput[],
   windowStart: Timestamp,
+  configHash: string,
 ): Promise<void> => {
   if (records.length === 0) return;
 
@@ -277,6 +311,7 @@ export const saveCongestionRecords = async (
       weekday: record.weekday,
       windowStart,
       uniqueDeviceCount: record.uniqueDeviceCount,
+      configHash,
     });
   }
 
@@ -352,6 +387,127 @@ export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> =
   if (!parsed.success) {
     console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
     return DEFAULT_FILTER_PIPELINE_CONFIG;
+  }
+  return parsed.data;
+};
+
+// BigQueryの保持期間の設定。実際の保持期間はBigQuery側のパーティションの有効期限で決まり、
+// ここには最後に適用できた値を残す。
+const RetentionConfigSchema = RetentionInputSchema.extend({
+  updatedAt: z.instanceof(Timestamp),
+  updatedBy: z.string().nullable(), // 認証が入るまではnull
+});
+export type RetentionConfig = z.infer<typeof RetentionConfigSchema>;
+
+export const getRetentionConfig = async (): Promise<RetentionConfig | null> => {
+  const doc = await db.collection("config").doc("retention").get();
+  if (!doc.exists) return null;
+
+  const parsed = RetentionConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/retention:", parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
+export const saveRetentionConfig = async (input: RetentionInput, updatedBy: string | null): Promise<void> => {
+  await db.collection("config").doc("retention").set({
+    ...input,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy,
+  });
+};
+
+// 1日分の記録を読む。locationとweekdayの等価、windowStartの範囲なので、既存の複合インデックスに収まる。
+export const getCongestionRecordsForDay = async (
+  location: string,
+  weekday: number,
+  start: Timestamp,
+  end: Timestamp,
+): Promise<CongestionRecord[]> => {
+  const snapshot = await db.collection("congestion_records")
+    .where("location", "==", location)
+    .where("weekday", "==", weekday)
+    .where("windowStart", ">=", start)
+    .where("windowStart", "<", end)
+    .get();
+
+  const result: CongestionRecord[] = [];
+  for (const doc of snapshot.docs) {
+    const parsed = CongestionRecordSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in congestion_records document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
+
+const dailySummaryDocId = (location: string, date: string): string => `${sanitizeForDocId(location)}__${date}`;
+
+// 複数の日をまとめて読む。getAllは1回の呼び出しで済み、存在しない日はnullで返す。
+export const getDailySummaries = async (location: string, dates: string[]): Promise<Map<string, DailySummary>> => {
+  const result = new Map<string, DailySummary>();
+  if (dates.length === 0) return result;
+
+  const refs = dates.map(date => db.collection("daily_summaries").doc(dailySummaryDocId(location, date)));
+  const docs = await db.getAll(...refs);
+
+  for (const doc of docs) {
+    if (!doc.exists) continue;
+    const parsed = DailySummarySchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in daily_summaries document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.set(parsed.data.date, parsed.data);
+  }
+  return result;
+};
+
+export const saveDailySummary = async (summary: DailySummaryInput): Promise<void> => {
+  await db.collection("daily_summaries").doc(dailySummaryDocId(summary.location, summary.date)).set({
+    ...summary,
+    computedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+// 基準値の計算対象にするlocation。Firestoreにdistinctが無いので、直近の記録から重複を除いて取る。
+// 事前登録(config/locations)は使わない(issue #32でaggregateから外したため)。
+export const getRecentLocations = async (since: Timestamp): Promise<string[]> => {
+  const snapshot = await db.collection("congestion_records").where("windowStart", ">=", since).get();
+  return [...new Set(snapshot.docs.map(doc => doc.data().location as string))];
+};
+
+export type MaxDeviceInput = Omit<MaxDeviceData, "computedAt">;
+
+// 発行しない場合はこの関数を呼ばない。未発行ならドキュメントが無いまま、発行済みなら既存の値が残る(issue #24 Decision 7)。
+export const saveMaxDevice = async (maxDevice: MaxDeviceInput): Promise<void> => {
+  await db.collection("max_devices").doc(`${sanitizeForDocId(maxDevice.location)}_${maxDevice.weekday}`).set({
+    ...maxDevice,
+    computedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+export const saveExcludedDay = async (excluded: ExcludedDayInput): Promise<void> => {
+  await db.collection("excluded_records").doc(`${sanitizeForDocId(excluded.location)}__${excluded.date}`).set({
+    ...excluded,
+    evaluatedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+// 基準値の計算に使う設定。ドキュメントが無ければnullを返し、呼び出し側がコードの既定値を使う。
+// 項目ごとの検証はresolveSettingsで行うので、ここでは全体の形だけを見る。
+export const getBaselineConfig = async (): Promise<BaselineConfig | null> => {
+  const doc = await db.collection("config").doc("baseline").get();
+  if (!doc.exists) return null;
+
+  const parsed = BaselineConfigSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in config/baseline:", parsed.error.issues);
+    return null;
   }
   return parsed.data;
 };
