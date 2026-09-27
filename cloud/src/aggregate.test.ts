@@ -2,6 +2,9 @@ import { app } from "./app";
 import { db } from "./lib/firebase";
 import { savePendingScanEvent, pendingScanDocId } from "./repositories/firestore";
 import { ScanEvent, ScanEventDevice } from "./schema/scan_event";
+import { publishAggregateRun } from "./repositories/pubsub";
+
+jest.mock("./repositories/pubsub");
 
 // 他のテストのドキュメントと混ざらないよう、遠い過去の時刻を使う。
 // 猶予の1分を置くので、10:06に呼ぶと[10:00, 10:05)の窓が対象になる
@@ -61,6 +64,7 @@ describe("POST /aggregate", () => {
 
 	test("窓の範囲のデータだけを集計して記録し、読んだドキュメントだけを削除する", async () => {
 		await cleanup();
+		(publishAggregateRun as jest.Mock).mockClear();
 		// 窓の中のinAとinBは、同じ端末(H1)を拾っていて、location内で重複排除される
 		for (const e of all) {
 			await savePendingScanEvent(e, "m");
@@ -93,8 +97,40 @@ describe("POST /aggregate", () => {
 		expect(await exists(late)).toBe(true);
 	});
 
+	test("そのとき使った設定のハッシュを、congestion_recordsと履歴の両方に記録する", async () => {
+		const loc1 = await db.collection("congestion_records").doc(`agg-loc-1__${windowStartMs}`).get();
+		const configHash = loc1.data()?.configHash;
+		expect(configHash).toMatch(/^[0-9a-f]{64}$/);
+
+		const run = (publishAggregateRun as jest.Mock).mock.calls[0][0];
+		expect(run.configHash).toBe(configHash);
+		expect(JSON.parse(run.stagesJson)).toEqual([
+			{ name: "dedupe" },
+			{ allowedCompanyIds: ["004C"], name: "companyFilter", requireNearbyInfo: true },
+			{ name: "rssiFilter", rssiThreshold: -100 },
+		]);
+	});
+
+	test("履歴に、locationごとの台数と各段の通過数、ノードごとの受信件数が入る", async () => {
+		const run = (publishAggregateRun as jest.Mock).mock.calls[0][0];
+		expect(run.windowStart).toBe("2019-12-31T10:00:00.000Z");
+		expect(run.computedAt).toBe("2019-12-31T10:06:00.000Z");
+
+		const loc1 = run.locations.find((l: { location: string }) => l.location === "agg-loc-1");
+		expect(loc1.uniqueDeviceCount).toBe(2);
+		// dedupeで3台(H1, H2, H3)になり、companyFilterでH3が落ちて2台になる
+		expect(loc1.stageTrace).toEqual([
+			{ stageName: "dedupe", countBefore: 4, countAfter: 3 },
+			{ stageName: "companyFilter", countBefore: 3, countAfter: 2 },
+			{ stageName: "rssiFilter", countBefore: 2, countAfter: 2 },
+		]);
+
+		expect(run.nodes).toContainEqual({ nodeId: "agg-node-a", location: "agg-loc-1", postCount: 1, totalMacCount: 2 });
+	});
+
 	test("窓の中にデータが無ければ、何も記録しない", async () => {
 		await cleanup();
+		(publishAggregateRun as jest.Mock).mockClear();
 		const res = await app.request("/aggregate", { method: "POST" });
 		expect(res.status).toBe(200);
 		expect(await res.json()).toMatchObject({ scanCount: 0, locationCount: 0 });

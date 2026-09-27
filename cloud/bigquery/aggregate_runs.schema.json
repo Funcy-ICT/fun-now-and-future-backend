@@ -1,0 +1,37 @@
+[
+  { "name": "windowStart", "type": "TIMESTAMP", "mode": "REQUIRED" },
+  { "name": "computedAt", "type": "TIMESTAMP", "mode": "REQUIRED" },
+  { "name": "configHash", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "stagesJson", "type": "STRING", "mode": "REQUIRED" },
+  {
+    "name": "locations",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "fields": [
+      { "name": "location", "type": "STRING", "mode": "REQUIRED" },
+      { "name": "weekday", "type": "INT64", "mode": "REQUIRED" },
+      { "name": "uniqueDeviceCount", "type": "INT64", "mode": "REQUIRED" },
+      {
+        "name": "stageTrace",
+        "type": "RECORD",
+        "mode": "REPEATED",
+        "fields": [
+          { "name": "stageName", "type": "STRING", "mode": "REQUIRED" },
+          { "name": "countBefore", "type": "INT64", "mode": "REQUIRED" },
+          { "name": "countAfter", "type": "INT64", "mode": "REQUIRED" }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "nodes",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "fields": [
+      { "name": "nodeId", "type": "STRING", "mode": "REQUIRED" },
+      { "name": "location", "type": "STRING", "mode": "REQUIRED" },
+      { "name": "postCount", "type": "INT64", "mode": "REQUIRED" },
+      { "name": "totalMacCount", "type": "INT64", "mode": "REQUIRED" }
+    ]
+  }
+]
