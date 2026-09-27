@@ -1,5 +1,6 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
+import { SignageAssetsResponseSchema } from "./schema/api/signage";
 
 const VALID_API_KEY = "funcy_esp32_secret_key_2026";
 
@@ -36,6 +37,7 @@ describe("GET /signage/assets", () => {
 
       expect(res.status).toBe(200);
       const json = await res.json();
+      expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
       expect(json.assets).toContainEqual({
         id,
         title: "秋のコンテスト告知",
@@ -67,6 +69,7 @@ describe("GET /signage/assets", () => {
         headers: { "x-api-key": VALID_API_KEY },
       });
       const json = await res.json();
+      expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
       expect(json.assets.find((a: { id: string }) => a.id === id)).toBeUndefined();
     } finally {
       await db.collection("prAssets").doc(id).delete();

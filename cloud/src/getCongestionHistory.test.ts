@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
 import { jstWeekday } from "./services/scan_service";
+import { CongestionHistoryResponseSchema } from "./schema/api/signage";
 
 describe("getCongestionHistory", () => {
 	test("履歴の取得ができる", async () => {
@@ -45,6 +46,7 @@ describe("getCongestionHistory", () => {
 			expect(res.status).toBe(200);
 
 			const json = await res.json();
+			expect(CongestionHistoryResponseSchema.safeParse(json).success).toBe(true);
 			expect(json.status).toBe("success");
 			expect(json.count).toBe(2);
 			// windowStart降順で返るので、新しい方(windowStart2)が先頭になる
