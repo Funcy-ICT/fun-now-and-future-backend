@@ -419,8 +419,6 @@ export const saveRetentionConfig = async (input: RetentionInput, updatedBy: stri
   });
 };
 
-// 基準値の計算に使う設定。ドキュメントが無ければnullを返し、呼び出し側がコードの既定値を使う。
-// 項目ごとの検証はresolveSettingsで行うので、ここでは全体の形だけを見る。
 // 1日分の記録を読む。locationとweekdayの等価、windowStartの範囲なので、既存の複合インデックスに収まる。
 export const getCongestionRecordsForDay = async (
   location: string,
@@ -500,6 +498,8 @@ export const saveExcludedDay = async (excluded: ExcludedDayInput): Promise<void>
   });
 };
 
+// 基準値の計算に使う設定。ドキュメントが無ければnullを返し、呼び出し側がコードの既定値を使う。
+// 項目ごとの検証はresolveSettingsで行うので、ここでは全体の形だけを見る。
 export const getBaselineConfig = async (): Promise<BaselineConfig | null> => {
   const doc = await db.collection("config").doc("baseline").get();
   if (!doc.exists) return null;
