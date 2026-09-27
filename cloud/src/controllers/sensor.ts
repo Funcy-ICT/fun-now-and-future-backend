@@ -34,6 +34,10 @@ sensorRoute.openAPIRegistry.registerPath({
   method: "post",
   path: "/receiveSensorData",
   summary: "esp32からBLEの検出データを受け取り、Pub/Subにpublishする",
+  description: "macアドレスは受信の時点でハッシュ化(HMAC-SHA256)する。rawのときはパースして、パースの結果とrawDataも含める。"
+    + "publishの完了を待ってから200を返す。500のときは、esp32は同じsendIdで再送する。"
+    + "pending_scansへの保存とBigQueryへの蓄積は、それぞれのサブスクリプションが行う。"
+    + "受信したデータの写しは返さない。esp32の送受信の時間を短くするため",
   security: [{ ApiKeyAuth: [] }],
   request: {
     body: { content: { "application/json": { schema: SensorDataSchema } }, required: true },

@@ -21,6 +21,7 @@ const getCongestionRoute = createRoute({
   method: "get",
   path: "/getCongestion",
   summary: "指定したlocationの最新の混雑度",
+  description: "levelの意味と、levelがnullのときの読み方は、CongestionStatusの各項目の説明を参照",
   request: { query: LocationQuerySchema },
   responses: {
     200: jsonContent(CongestionResponseSchema, "最新の混雑度"),
@@ -33,6 +34,7 @@ const getCongestionHistoryRoute = createRoute({
   method: "get",
   path: "/getCongestionHistory",
   summary: "指定したlocationの混雑度の履歴(新しい順)",
+  description: "履歴の各要素にstaleは含まれない。過去のデータに対して、同じ意味を持たないため",
   request: { query: HistoryQuerySchema },
   responses: {
     200: jsonContent(CongestionHistoryResponseSchema, "混雑度の履歴"),
@@ -81,6 +83,9 @@ const getSignageAssetsRoute = createRoute({
   method: "get",
   path: "/signage/assets",
   summary: "掲載中の広報アセットの一覧",
+  description: "掲載期間内のアセットだけを返す(statusがapprovedで、publishFromからpublishUntilまでの間。"
+    + "publishUntilがnullなら無期限)。実体は返さず、公開バケット上のURLを返す。"
+    + "投稿と承認の手段はまだ無く、Firestoreのコンソールとgcloud storage cpで手で入れる",
   middleware: [signageAuthMiddleware] as const,
   security: [{ ApiKeyAuth: [] }],
   responses: {

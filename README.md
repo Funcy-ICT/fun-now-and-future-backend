@@ -4,6 +4,20 @@
 ESP32 から送信される BLE 検知データを処理し、Firestore への保存およびサイネージ・アプリ向けの混雑度データ提供を行います。
 
 
+## API の仕様（Swagger）
+公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
+
+* `GET /doc` - OpenAPI（3.0）の JSON
+* `GET /ui` - Swagger UI。ブラウザで開くと、仕様を見て、その場で試せる。ローカルなら `http://localhost:8080/ui`
+  （起動の仕方は「ローカル開発・テスト手順」）
+* 載るのは公開するサービス（`ingest`とローカル）のルートだけ。内部用のルート（`/aggregate`、`/pubsub/scan-events`、
+  `/internal/batch/calc-max-device`）は載らず、`worker`には`/doc`も`/ui`も無い
+* リクエストとレスポンスのスキーマは`src/schema/api/`にある。レスポンスがスキーマに合っているかは、エンドポイントの
+  テストで確かめている
+* `/receiveSensorData`は、仕様への登録だけで、処理はこれまでどおり。APIキーの確認より先にボディの検証が動かないよう
+  にするため
+
+
 ## お約束
 
 ### Github
@@ -159,17 +173,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 
 > Base URL: `まだデプロイしてない`
 
-### API の仕様（Swagger）
-公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
-
-* `GET /doc` - OpenAPI（3.0）の JSON
-* `GET /ui` - Swagger UI。ブラウザで開くと、仕様を見て、その場で試せる。ローカルなら `http://localhost:8080/ui`
-* 載るのは公開するサービス（`ingest`とローカル）のルートだけ。内部用のルート（`/aggregate`、`/pubsub/scan-events`、
-  `/internal/batch/calc-max-device`）は載らず、`worker`には`/doc`も`/ui`も無い
-* リクエストとレスポンスのスキーマは`src/schema/api/`にある。レスポンスがスキーマに合っているかは、エンドポイントの
-  テストで確かめている
-* `/receiveSensorData`は、仕様への登録だけで、処理はこれまでどおり。APIキーの確認より先にボディの検証が動かないよう
-  にするため
+エンドポイントの仕様は、Swagger UI（`/ui`）でも見られる（上記「API の仕様（Swagger）」）。
 
 ### 1. GET /health
 死活監視用のエンドポイント。
