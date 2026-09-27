@@ -15,6 +15,8 @@ export const CongestionRecordSchema = z.object({
   weekday: z.number().int().min(0).max(6), // JST基準
   windowStart: z.instanceof(Timestamp),
   uniqueDeviceCount: z.number().int().nonnegative(),
+  // どの設定で数えた値かを見分けるためのハッシュ。この項目が無い既存のレコードも読めるよう、任意にする
+  configHash: z.string().optional(),
 });
 export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
 
@@ -290,6 +292,7 @@ export const saving_node_health_status = async (stats: NodeStatusData[]): Promis
 export const saveCongestionRecords = async (
   records: CongestionRecordInput[],
   windowStart: Timestamp,
+  configHash: string,
 ): Promise<void> => {
   if (records.length === 0) return;
 
@@ -304,6 +307,7 @@ export const saveCongestionRecords = async (
       weekday: record.weekday,
       windowStart,
       uniqueDeviceCount: record.uniqueDeviceCount,
+      configHash,
     });
   }
 

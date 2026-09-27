@@ -62,6 +62,7 @@ src/
 │   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
 │   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
 │   ├── analysis.ts        # 生データから、指定した設定で窓・locationごとの台数を数え直す
+│   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)
 │   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
 ├── repositories/          # Firestore, Pub/Sub, BigQueryへの読み書きのみ
 │   ├── firestore.ts
@@ -73,7 +74,8 @@ src/
 │   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
 ├── schema/                # Zodスキーマ・型定義
 │   ├── sensor_data.ts
-│   └── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
+│   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
+│   └── aggregate_run.ts   # 集計結果の履歴(BigQueryのaggregate_runsテーブルに対応)
 └── lib/
     ├── firebase.ts        # Firebase Admin SDKの初期化
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
@@ -83,6 +85,8 @@ src/
 
 `cloud/bigquery/scan_events.schema.json`は、BigQueryのテーブル`scan_events`の列の定義。`ScanEventSchema`との突き合わせテストで使う。
 BigQueryサブスクリプションでメタデータの書き込みを有効にするので、`message_id`などの列も含む。
+`cloud/bigquery/`の`scan_events.schema.json`と`aggregate_runs.schema.json`は、BigQueryのテーブルの列の定義。
+`ScanEventSchema`、`AggregateRunSchema`との突き合わせテスト（`src/testing/bq_schema.ts`）で使う。
 
 ## 環境変数
 
@@ -95,6 +99,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
 | `BQ_DATASET` | BigQueryのデータセット名。テストではテスト用のデータセットに切り替える | `fnaf_analytics` |
 | `BQ_MAX_BYTES_BILLED` | 1回のクエリで課金されるバイト数の上限。未設定なら5GiB。超えるクエリは実行されずに失敗する | `5368709120` |
+| `AGGREGATE_RUNS_TOPIC` | 集計結果の履歴をpublishするPub/Subのトピック名。未設定なら履歴をpublishしない（トピックを作る前でもデプロイできる） | `aggregate-runs` |
 | `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
 
 ## サービスの分け方（SERVICE_ROLE）
@@ -200,6 +205,11 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
   る欠測と「誰もいなかった」を区別するために必要）
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
+* そのとき使ったフィルタの設定のハッシュ（`configHash`）を、`congestion_records`に記録する。設定を変えると台数の
+  意味が変わるため、どの設定で数えた値かを後から見分けられるようにする。この項目が無い既存のレコードも読める
+* 集計結果の履歴を、`AGGREGATE_RUNS_TOPIC`にpublishする（BigQueryの`aggregate_runs`用）。1回の集計につき1件で、
+  locationごとの台数と各段の通過数、ノードごとの受信件数、`configHash`、そのとき使った設定（`stagesJson`）を持つ。
+  publishに失敗しても集計は止めず、ログに残す
 
 ### POST /pubsub/scan-events（`worker`のみ）
 Pub/Subのプッシュサブスクリプションからメッセージを受け取り、`pending_scans`に保存する。
