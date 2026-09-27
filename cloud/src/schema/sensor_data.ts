@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const deviceBase = {
   mac: z.string().min(1, "mac is required").transform(s => s.toUpperCase()),
-  rssi: z.number().min(-100, "rssi must be greater than or equal to -100").max(0, "rssi must be less than or equal to 0"),
+  rssi: z.number().min(-127, "rssi must be greater than or equal to -127").max(20, "rssi must be less than or equal to 20"),
 };
 
 export const parsedDeviceSchema = z.object({
@@ -22,9 +22,10 @@ export const rawDeviceSchema = z.object({
 export const devicesSchema = z.discriminatedUnion("format", [parsedDeviceSchema, rawDeviceSchema]);
 
 export const SensorDataSchema = z.object({
+  sendId: z.string().min(1, "sendId must not be empty").max(64, "sendId must be 64 characters or fewer").optional(),
   nodeId: z.string().min(1, "nodeId is required"),
   location: z.string().min(1, "location is required"),
-  devices: z.array(devicesSchema).default([]),
+  devices: z.array(devicesSchema).max(256, "devices must be 256 or fewer").default([]),
 });
 
 export const ParsedSensorDataSchema = z.object({
