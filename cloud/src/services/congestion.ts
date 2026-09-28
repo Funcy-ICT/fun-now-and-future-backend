@@ -1,21 +1,14 @@
-import { MaxDeviceData } from "../repositories/firestore";
+import { MaxDeviceData } from "../schema/max_device";
 import { getLatestCongestionRecord } from "../repositories/firestore";
 import { getCongestionRecordHistory } from "../repositories/firestore";
 import { getMaxDevice } from "../repositories/firestore";
+import { CongestionHistoryEntry, CongestionStatus } from "../schema/api/signage";
 
 const STALE_THRESHOLD_MS = 15 * 60 * 1000; // 5分ウィンドウ3回分。ウィンドウの確定と書き込み遅延を差し引いた実効マージンは約2回分
 
 export const toLevel = (count: number, maxDevice: MaxDeviceData | null): number | null => {
   if (maxDevice === null) return null; // 基準値が未発行。キャリブレーション中として扱う
   return Math.min(9, Math.max(1, Math.ceil((count / maxDevice.baseline) * 9)));
-};
-
-export type CongestionStatus = {
-  location: string;
-  windowStart: string;
-  uniqueDeviceCount: number;
-  level: number | null;
-  stale: boolean;
 };
 
 export const getCongestionStatus = async (location: string): Promise<CongestionStatus | null> => {
@@ -33,13 +26,6 @@ export const getCongestionStatus = async (location: string): Promise<CongestionS
     level,
     stale: isStale,
   };
-};
-
-export type CongestionHistoryEntry = {
-  location: string;
-  windowStart: string;
-  uniqueDeviceCount: number;
-  level: number | null;
 };
 
 export const getCongestionHistoryStatus = async (location: string, limit: number): Promise<CongestionHistoryEntry[]> => {

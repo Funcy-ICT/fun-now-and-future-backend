@@ -1,40 +1,24 @@
 import { db } from "../lib/firebase";
 import { z } from "zod";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
-import { ScanEvent, ScanEventSchema } from "../schema/scan_event";
-import { StageConfigSchema } from "../services/scan_service";
-import { RetentionInput, RetentionInputSchema } from "../schema/retention";
+import { ScanEvent } from "../schema/scan_event";
+import { FilterPipelineConfig, FilterPipelineConfigSchema } from "../schema/filter_pipeline";
+import { RetentionConfig, RetentionConfigSchema, RetentionInput } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 import { ExcludedDayInput } from "../schema/excluded_day";
-
-export type CongestionRecordInput = {
-  location: string;
-  weekday: number;
-  uniqueDeviceCount: number;
-};
-
-export const CongestionRecordSchema = z.object({
-  location: z.string().min(1),
-  weekday: z.number().int().min(0).max(6), // JST基準
-  windowStart: z.instanceof(Timestamp),
-  uniqueDeviceCount: z.number().int().nonnegative(),
-  // どの設定で数えた値かを見分けるためのハッシュ。この項目が無い既存のレコードも読めるよう、任意にする
-  configHash: z.string().optional(),
-});
-export type CongestionRecord = z.infer<typeof CongestionRecordSchema>;
+import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
+import { MaxDeviceSchema, MaxDeviceData, MaxDeviceInput } from "../schema/max_device";
+import { NodeStatusSchema, NodeStatusData } from "../schema/node_status";
+import { PrAssetSchema, PrAsset } from "../schema/pr_asset";
+import { ScanDiagnosticsSchema, ScanDiagnostics } from "../schema/scan_diagnostics";
+import { PendingScanEventSchema, PendingScanEvent } from "../schema/pending_scan_event";
 
 // Firestoreのドキュメント名に使えない文字(/ 等)がlocationに紛れても壊れないようにするための最低限の変換
 const sanitizeForDocId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 
 // pending_scansへの保存は、pub/subのプッシュを受ける処理側(controllers/pubsub_push.ts)が行う。
-
-// Pub/Subのメッセージ(ScanEvent)をpending_scansに保存した形。受信時刻はTimestampにして、窓の範囲で検索できるようにする。
-export const PendingScanEventSchema = ScanEventSchema.omit({ receivedAt: true }).extend({
-  received_at: z.instanceof(Timestamp),
-});
-export type PendingScanEvent = z.infer<typeof PendingScanEventSchema>;
 
 // 同じメッセージが2回届いても、同じドキュメントに上書きされて二重に数えないよう、IDをメッセージから決める。
 // sendIdがあればnodeIdと組にする。無ければpub/subのmessageIdを使う(esp32の再送は防げないが、pub/subの再配信は防げる)。
@@ -207,25 +191,6 @@ export const toScanRecord = (doc: FirebaseFirestore.QueryDocumentSnapshot): Scan
   };
 }
 
-export const MaxDeviceSchema = z.object({
-  location: z.string().min(1, "location is required"),
-  weekday: z.number().int().min(0).max(6, "weekday must be between 0 and 6"),
-  baseline: z.number().min(9, "baseline must be at least 9"), // 9段階のlevelが成立する最小値
-  percentile: z.number(),
-  p50: z.number(),
-  p05: z.number(),
-  windowStartHour: z.number().int(),
-  windowEndHour: z.number().int(),
-  sampleDays: z.number().int().positive(),
-  sampleCount: z.number().int().positive(),
-  lookbackWeeks: z.number().int().positive(),
-  oldestSampleDate: z.string(),
-  refMedian: z.number(),
-  computedAt: z.instanceof(Timestamp),
-});
-
-export type MaxDeviceData = z.infer<typeof MaxDeviceSchema>;
-
 export const getMaxDevice = async (location: string, weekday: number): Promise<MaxDeviceData | null> => {
   const doc = await db.collection("max_devices").doc(`${location}_${weekday}`).get();
   if (!doc.exists) return null;
@@ -261,17 +226,6 @@ export async function getNextSequenceNumber(
 
   return newNumber;
 }
-
-const NodeStatusSchema = z.object({
-  nodeId: z.string().min(1, "nodeId is required"),
-  location: z.string().min(1, "location is required"),
-  windowStart: z.instanceof(Timestamp),
-  postCount: z.number().min(0, "postCount must be at least 0"),
-  totalMacCount: z.number().min(0, "totalMacCount must be at least 0"),
-});
-
-export type NodeStatusData = z.infer<typeof NodeStatusSchema>;
-
 
 export const saving_node_health_status = async (stats: NodeStatusData[]): Promise<void> => {
   if (stats.length === 0) return;
@@ -318,40 +272,6 @@ export const saveCongestionRecords = async (
   await batch.commit();
 };
 
-const PrAssetSchema = z.object({
-  id: z.string().min(1, "id is required"),
-  // 後続フェーズ（投稿・承認フロー）の値も含めて定義しておく。今回読むのはapprovedのみ。
-  status: z.enum(["pending", "approved", "rejected", "revoked"]),
-  title: z.string().min(1, "title is required"),
-  contentType: z.string().min(1, "contentType is required"),
-  size: z.number().min(0, "size must be 0 or greater"),
-  publishFrom: z.instanceof(Timestamp),
-  publishUntil: z.instanceof(Timestamp).nullable(),
-  createdAt: z.instanceof(Timestamp),
-});
-
-export type PrAsset = z.infer<typeof PrAssetSchema>;
-
-
-const ScanDiagnosticsSchema = z.object({
-  location: z.string().min(1),
-  weekday: z.number().int().min(0).max(6),
-  windowStart: z.instanceof(Timestamp),
-  stageTrace: z.array(z.object({
-    stageName: z.string(),
-    countBefore: z.number().int().nonnegative(),
-    countAfter: z.number().int().nonnegative(),
-  })),
-  devices: z.array(z.object({
-    uuid: z.string(), // 実際のmacアドレスではない。dedupeByMacが発行する使い捨てUUID
-    rssi: z.number(),
-    companyId: z.string().nullable(),
-    isNearbyInfo: z.boolean(),
-    count: z.number().int().positive(),
-  })),
-});
-export type ScanDiagnostics = z.infer<typeof ScanDiagnosticsSchema>;
-
 export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise<void> => {
   const result = ScanDiagnosticsSchema.safeParse(diagnostics);
   if (!result.success) {
@@ -362,12 +282,6 @@ export const saveScanDiagnostics = async (diagnostics: ScanDiagnostics): Promise
   const docId = `${sanitizeForDocId(result.data.location)}__${result.data.windowStart.toMillis()}`;
   await db.collection("scan_diagnostics").doc(docId).set(result.data);
 };
-
-const FilterPipelineConfigSchema = z.object({
-  stages: z.array(StageConfigSchema),
-  debugModeEnabled: z.boolean(),
-});
-export type FilterPipelineConfig = z.infer<typeof FilterPipelineConfigSchema>;
 
 // 読み取りに失敗した場合のフォールバック。既存の運用(companyId "004C" + isNearbyInfo必須、RSSI閾値-100、デバッグOFF)と同じ構成にする
 const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
@@ -390,14 +304,6 @@ export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> =
   }
   return parsed.data;
 };
-
-// BigQueryの保持期間の設定。実際の保持期間はBigQuery側のパーティションの有効期限で決まり、
-// ここには最後に適用できた値を残す。
-const RetentionConfigSchema = RetentionInputSchema.extend({
-  updatedAt: z.instanceof(Timestamp),
-  updatedBy: z.string().nullable(), // 認証が入るまではnull
-});
-export type RetentionConfig = z.infer<typeof RetentionConfigSchema>;
 
 export const getRetentionConfig = async (): Promise<RetentionConfig | null> => {
   const doc = await db.collection("config").doc("retention").get();
@@ -480,8 +386,6 @@ export const getRecentLocations = async (since: Timestamp): Promise<string[]> =>
   const snapshot = await db.collection("congestion_records").where("windowStart", ">=", since).get();
   return [...new Set(snapshot.docs.map(doc => doc.data().location as string))];
 };
-
-export type MaxDeviceInput = Omit<MaxDeviceData, "computedAt">;
 
 // 発行しない場合はこの関数を呼ばない。未発行ならドキュメントが無いまま、発行済みなら既存の値が残る(issue #24 Decision 7)。
 export const saveMaxDevice = async (maxDevice: MaxDeviceInput): Promise<void> => {

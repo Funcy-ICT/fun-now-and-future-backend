@@ -1,11 +1,11 @@
 import { randomUUID } from "crypto";
-import { z } from "zod";
 import { parseRawData } from "./parseRawData";
 import { Device } from "../schema/sensor_data";
 import { ParsedDevice } from "../schema/sensor_data";
 import { ParsedSensorData } from "../schema/sensor_data";
-import { NodeStatusData } from "../repositories/firestore";
+import { NodeStatusData } from "../schema/node_status";
 import { Timestamp } from "firebase-admin/firestore";
+import { StageConfig } from "../schema/filter_pipeline";
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -133,20 +133,6 @@ export const filterByRssi = (
 ): ParsedDevice[] => {
   return devices.filter(device => device.rssi >= minRssi);
 }
-
-export const StageConfigSchema = z.discriminatedUnion("name", [
-  z.object({ name: z.literal("dedupe") }),
-  z.object({
-    name: z.literal("companyFilter"),
-    allowedCompanyIds: z.array(z.string()),
-    requireNearbyInfo: z.boolean(),
-  }),
-  z.object({
-    name: z.literal("rssiFilter"),
-    rssiThreshold: z.number(),
-  }),
-]);
-export type StageConfig = z.infer<typeof StageConfigSchema>;
 
 type StageFn = (devices: ParsedDevice[], config: StageConfig) => ParsedDevice[];
 

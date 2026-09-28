@@ -1,4 +1,4 @@
-import { CongestionRecord } from "../repositories/firestore";
+import { CongestionRecord } from "../schema/congestion_record";
 import { DailySummaryInput } from "../schema/daily_summary";
 import { BaselineSettings } from "../schema/baseline_settings";
 import { medianOfSorted } from "./statistics";

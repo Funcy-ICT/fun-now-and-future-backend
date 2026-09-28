@@ -1,4 +1,4 @@
-import { StageConfig } from "./scan_service";
+import { StageConfig } from "../schema/filter_pipeline";
 
 // BigQueryのクエリパラメータ。値と型を別に持つ。空の配列は型を推定できないため、型は必ず指定する。
 export type QueryParams = {

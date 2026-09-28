@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { sensorAuthMiddleware } from "../middlewares/sensor_auth";
 import { Timestamp } from "firebase-admin/firestore";
 import { aggregateWindow, jstWeekday, aggregateNodeHealth, groupByLocation, runPipeline, STALE_PENDING_SCAN_MS } from "../services/scan_service";
@@ -17,13 +18,37 @@ import {
   deleteStalePendingScans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
-  CongestionRecordInput,
 } from "../repositories/firestore";
+import { CongestionRecordInput } from "../schema/congestion_record";
+import { ReceiveSensorDataResponseSchema } from "../schema/api/sensor";
+import { ErrorResponseSchema } from "../schema/api/common";
 
 
 
 
-export const sensorRoute = new Hono();
+export const sensorRoute = new OpenAPIHono();
+
+// 呼び出すのはesp32で、TypeScriptのクライアントからは使わないので、swaggerへの登録だけにして処理は変えない。
+// APIキーの確認より先にボディの検証が動くと、キーが無い要求に400を返してしまうため、ルートの定義からの検証も使わない。
+sensorRoute.openAPIRegistry.registerPath({
+  method: "post",
+  path: "/receiveSensorData",
+  summary: "esp32からBLEの検出データを受け取り、Pub/Subにpublishする",
+  description: "macアドレスは受信の時点でハッシュ化(HMAC-SHA256)する。rawのときはパースして、パースの結果とrawDataも含める。"
+    + "publishの完了を待ってから200を返す。500のときは、esp32は同じsendIdで再送する。"
+    + "pending_scansへの保存とBigQueryへの蓄積は、それぞれのサブスクリプションが行う。"
+    + "受信したデータの写しは返さない。esp32の送受信の時間を短くするため",
+  security: [{ ApiKeyAuth: [] }],
+  request: {
+    body: { content: { "application/json": { schema: SensorDataSchema } }, required: true },
+  },
+  responses: {
+    200: { content: { "application/json": { schema: ReceiveSensorDataResponseSchema } }, description: "受け付けた" },
+    400: { content: { "application/json": { schema: ErrorResponseSchema } }, description: "ボディが不正。再送しても通らない" },
+    401: { content: { "application/json": { schema: ErrorResponseSchema } }, description: "APIキーが無い、または違う" },
+    500: { description: "publishに失敗した。esp32は再送する" },
+  },
+});
 
 
 sensorRoute.post("/receiveSensorData", async (c) => {

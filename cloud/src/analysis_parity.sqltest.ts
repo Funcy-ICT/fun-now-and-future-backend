@@ -3,7 +3,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { getBigQuery, getScanEventsTableId } from "./lib/bigquery";
 import { countDevicesByWindow, WindowResult } from "./services/analysis";
-import { jstWeekday, runPipeline, StageConfig } from "./services/scan_service";
+import { jstWeekday, runPipeline } from "./services/scan_service";
+import { StageConfig } from "./schema/filter_pipeline";
 import { toParsedDevice } from "./services/scan_event";
 import { ScanEventDevice } from "./schema/scan_event";
 

@@ -1,68 +1,100 @@
-import { Hono } from "hono";
-import { z } from "zod";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { getCongestionStatus } from "../services/congestion";
 import { getCongestionHistoryStatus } from "../services/congestion";
 import { listPublishedPrAssets } from "../services/PublicRelations";
 import { signageAuthMiddleware } from "../middlewares/signage_auth";
+import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema, SignageAssetsResponseSchema } from "../schema/api/signage";
+import { ErrorResponseSchema } from "../schema/api/common";
 
-const LocationQuerySchema = z.object({
-  location: z.string().min(1, "location query parameter is required"),
+// swaggerの定義から、リクエストの検証とレスポンスの型が決まる。検証に失敗したときは、これまでと同じ形の400を返す
+export const congestionRoute = new OpenAPIHono({
+  defaultHook: (result, c) =>
+    result.success ? undefined : c.json({ status: "error" as const, message: result.error.issues[0].message }, 400),
 });
 
-const HistoryQuerySchema = LocationQuerySchema.extend({
-  limit: z.coerce.number().int().min(1).max(50).default(50),
+const jsonContent = <T,>(schema: T, description: string) => ({
+  content: { "application/json": { schema } },
+  description,
 });
 
-export const congestionRoute = new Hono();
+const getCongestionRoute = createRoute({
+  method: "get",
+  path: "/getCongestion",
+  summary: "指定したlocationの最新の混雑度",
+  description: "levelの意味と、levelがnullのときの読み方は、CongestionStatusの各項目の説明を参照",
+  request: { query: LocationQuerySchema },
+  responses: {
+    200: jsonContent(CongestionResponseSchema, "最新の混雑度"),
+    400: jsonContent(ErrorResponseSchema, "クエリが不正"),
+    404: jsonContent(ErrorResponseSchema, "該当するデータが無い"),
+  },
+});
 
-congestionRoute.get("/getCongestion", async (c) => {
-  const parseResult = LocationQuerySchema.safeParse(c.req.query());
-  if (!parseResult.success) {
-    return c.json({
-      status: "error",
-      message: parseResult.error.issues[0].message,
-    }, 400);
-  }
+const getCongestionHistoryRoute = createRoute({
+  method: "get",
+  path: "/getCongestionHistory",
+  summary: "指定したlocationの混雑度の履歴(新しい順)",
+  description: "履歴の各要素にstaleは含まれない。過去のデータに対して、同じ意味を持たないため",
+  request: { query: HistoryQuerySchema },
+  responses: {
+    200: jsonContent(CongestionHistoryResponseSchema, "混雑度の履歴"),
+    400: jsonContent(ErrorResponseSchema, "クエリが不正"),
+    404: jsonContent(ErrorResponseSchema, "該当するデータが無い"),
+  },
+});
 
-  const status = await getCongestionStatus(parseResult.data.location);
+congestionRoute.openapi(getCongestionRoute, async (c) => {
+  const { location } = c.req.valid("query");
+
+  const status = await getCongestionStatus(location);
   if (status === null) {
     return c.json({
-      status: "error",
+      status: "error" as const,
       message: "No data found",
     }, 404);
   }
 
   return c.json({
-    status: "success",
+    status: "success" as const,
     data: status,
   }, 200);
 })
 
-congestionRoute.get("/getCongestionHistory", async (c) => {
-  const parseResult = HistoryQuerySchema.safeParse(c.req.query());
-  if (!parseResult.success) {
-    return c.json({
-      status: "error",
-      message: parseResult.error.issues[0].message,
-    }, 400);
-  }
+congestionRoute.openapi(getCongestionHistoryRoute, async (c) => {
+  const { location, limit } = c.req.valid("query");
 
-  const history = await getCongestionHistoryStatus(parseResult.data.location, parseResult.data.limit);
+  const history = await getCongestionHistoryStatus(location, limit);
   if (history.length === 0) {
     return c.json({
-      status: "error",
+      status: "error" as const,
       message: "No history data found",
     }, 404);
   }
 
   return c.json({
-    status: "success",
+    status: "success" as const,
     count: history.length,
     data: history,
   }, 200);
 })
 
-congestionRoute.get("/signage/assets", signageAuthMiddleware, async (c) => {
+// APIキーの確認はmiddlewareで行う。クエリやボディの検証より先に動くので、キーが無ければ401を返す
+const getSignageAssetsRoute = createRoute({
+  method: "get",
+  path: "/signage/assets",
+  summary: "掲載中の広報アセットの一覧",
+  description: "掲載期間内のアセットだけを返す(statusがapprovedで、publishFromからpublishUntilまでの間。"
+    + "publishUntilがnullなら無期限)。実体は返さず、公開バケット上のURLを返す。"
+    + "投稿と承認の手段はまだ無く、Firestoreのコンソールとgcloud storage cpで手で入れる",
+  middleware: [signageAuthMiddleware] as const,
+  security: [{ ApiKeyAuth: [] }],
+  responses: {
+    200: jsonContent(SignageAssetsResponseSchema, "掲載中の広報アセット"),
+    401: jsonContent(ErrorResponseSchema, "APIキーが無い、または違う"),
+  },
+});
+
+congestionRoute.openapi(getSignageAssetsRoute, async (c) => {
   const assets = await listPublishedPrAssets();
-  return c.json({ assets });
+  return c.json({ assets }, 200);
 });

@@ -1,10 +1,12 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { swaggerUI } from "@hono/swagger-ui";
 import { sensorRoute } from "./controllers/sensor";
 import { congestionRoute } from "./controllers/signage";
 import { errorHandler } from "./middlewares/error_handler";
 import { aggregateRoute } from "./controllers/sensor";
 import { pubsubPushRoute } from "./controllers/pubsub_push";
 import { batchRoute } from "./controllers/batch";
+import { HealthResponseSchema } from "./schema/api/common";
 
 export type ServiceRole = "ingest" | "worker" | "all";
 
@@ -17,19 +19,44 @@ export const getServiceRole = (): ServiceRole => {
   throw new Error(`Unknown SERVICE_ROLE: ${role}`);
 };
 
-//ルートを一つにまとめる
-export const createApp = (role: ServiceRole): Hono => {
-  const app = new Hono();
+const healthRoute = createRoute({
+  method: "get",
+  path: "/health",
+  summary: "死活監視",
+  responses: {
+    200: { content: { "application/json": { schema: HealthResponseSchema } }, description: "動いている" },
+  },
+});
+
+//ルートを一つにまとめる。swaggerの定義をまとめられるよう、OpenAPIHonoにする
+export const createApp = (role: ServiceRole): OpenAPIHono => {
+  const app = new OpenAPIHono();
 
   //アプリ全体のエラーハンドラーとして登録
   app.onError(errorHandler);
 
-  app.get("/health", (c) => c.json({ status: "ok", message: "Backend is running" }));
+  app.openapi(healthRoute, (c) => c.json({ status: "ok" as const, message: "Backend is running" }, 200));
 
   //公開するサービス。esp32とサイネージからのリクエストを受ける
   if (role !== "worker") {
     app.route("/", sensorRoute);
     app.route("/", congestionRoute);
+
+    //swaggerは公開するルートだけを載せる。内部用のルート(workerのもの)はOpenAPIHonoで定義していないので、ここには出ない
+    app.openAPIRegistry.registerComponent("securitySchemes", "ApiKeyAuth", {
+      type: "apiKey",
+      in: "header",
+      name: "x-api-key",
+    });
+    app.doc("/doc", {
+      openapi: "3.0.0",
+      info: {
+        title: "Fun Now and Future API",
+        version: "1.0.0",
+        description: "esp32からの受信と、サイネージ向けのエンドポイント",
+      },
+    });
+    app.get("/ui", swaggerUI({ url: "/doc" }));
   }
 
   //Cloud Runの認証必須にするサービス。Pub/SubとCloud Schedulerだけが呼べるようにする

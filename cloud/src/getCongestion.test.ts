@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
 import { jstWeekday } from "./services/scan_service";
+import { CongestionResponseSchema } from "./schema/api/signage";
 
 describe("getCongestion", () => {
 	test("混雑度を取得", async () => {
@@ -39,6 +40,7 @@ describe("getCongestion", () => {
 			expect(res.status).toBe(200);
 
 			const json = await res.json();
+			expect(CongestionResponseSchema.safeParse(json).success).toBe(true);
 			expect(json.status).toBe("success");
 			expect(json.data).toMatchObject({
 				location: "moscow",
@@ -71,6 +73,7 @@ describe("getCongestion", () => {
 			expect(res.status).toBe(200);
 
 			const json = await res.json();
+			expect(CongestionResponseSchema.safeParse(json).success).toBe(true);
 			expect(json.data.level).toBeNull();
 			expect(json.data.stale).toBe(false);
 		} finally {

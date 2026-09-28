@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { StageConfig, StageTraceEntry } from "./scan_service";
+import { StageTraceEntry } from "./scan_service";
+import { StageConfig } from "../schema/filter_pipeline";
 import { buildAnalysisQuery } from "./analysis_sql";
 import { runQuery } from "../repositories/bigquery";
 import { getScanEventsTableId } from "../lib/bigquery";

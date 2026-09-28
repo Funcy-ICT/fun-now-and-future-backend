@@ -1,5 +1,6 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
+import { SignageAssetsResponseSchema } from "./schema/api/signage";
 import { TEST_API_KEY } from "./testing/api_key";
 
 describe("GET /signage/assets", () => {
@@ -35,6 +36,7 @@ describe("GET /signage/assets", () => {
 
       expect(res.status).toBe(200);
       const json = await res.json();
+      expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
       expect(json.assets).toContainEqual({
         id,
         title: "秋のコンテスト告知",
@@ -66,6 +68,7 @@ describe("GET /signage/assets", () => {
         headers: { "x-api-key": TEST_API_KEY },
       });
       const json = await res.json();
+      expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
       expect(json.assets.find((a: { id: string }) => a.id === id)).toBeUndefined();
     } finally {
       await db.collection("prAssets").doc(id).delete();

@@ -1,5 +1,5 @@
 import { stagesToJson, hashStages } from "./services/filter_config";
-import { StageConfig } from "./services/scan_service";
+import { StageConfig } from "./schema/filter_pipeline";
 
 const stages: StageConfig[] = [
 	{ name: "dedupe" },

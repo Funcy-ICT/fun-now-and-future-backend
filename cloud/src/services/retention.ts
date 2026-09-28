@@ -1,7 +1,7 @@
 import { getScanEventsTableId } from "../lib/bigquery";
 import { runDdl } from "../repositories/bigquery";
-import { getRetentionConfig, RetentionConfig, saveRetentionConfig } from "../repositories/firestore";
-import { MAX_RETENTION_DAYS, MIN_RETENTION_DAYS, RetentionInput } from "../schema/retention";
+import { getRetentionConfig, saveRetentionConfig } from "../repositories/firestore";
+import { MAX_RETENTION_DAYS, MIN_RETENTION_DAYS, RetentionConfig, RetentionInput } from "../schema/retention";
 
 const TABLE_ID_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+$/; // project.dataset.table
 

@@ -2,6 +2,8 @@ import { app } from "./app";
 import { db } from "./lib/firebase";
 import { hashMac } from "./services/mac";
 import { publishScanEvent } from "./repositories/pubsub";
+import { ErrorResponseSchema } from "./schema/api/common";
+import { ReceiveSensorDataResponseSchema } from "./schema/api/sensor";
 import { TEST_API_KEY } from "./testing/api_key";
 
 jest.mock("./repositories/pubsub");
@@ -43,6 +45,7 @@ describe("receiveSensorData", () => {
 		expect(res.status).toBe(200);
 
 		const json = await res.json();
+		expect(ReceiveSensorDataResponseSchema.safeParse(json).success).toBe(true);
 		expect(json.status).toBe("success");
 		expect(json.data).toBeUndefined(); // 受信したデータは返さない
 		expect(json.sendId).toBeNull();
@@ -151,6 +154,7 @@ describe("receiveSensorData", () => {
 		expect(res.status).toBe(401);
 
 		const json = await res.json();
+		expect(ErrorResponseSchema.safeParse(json).success).toBe(true);
 		expect(json.status).toBe("error");
 		expect(json.message).toBe("Unauthorized: Invalid or missing API Key");
 	});
@@ -175,6 +179,7 @@ describe("receiveSensorData", () => {
 		expect(res.status).toBe(401);
 
 		const json = await res.json();
+		expect(ErrorResponseSchema.safeParse(json).success).toBe(true);
 		expect(json.status).toBe("error");
 	});
 });
