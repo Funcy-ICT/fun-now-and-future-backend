@@ -1,7 +1,6 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
-
-const VALID_API_KEY = "funcy_esp32_secret_key_2026";
+import { TEST_API_KEY } from "./testing/api_key";
 
 describe("GET /signage/assets", () => {
   const originalBucket = process.env.PR_ASSET_BUCKET;
@@ -31,7 +30,7 @@ describe("GET /signage/assets", () => {
 
     try {
       const res = await app.request("/signage/assets", {
-        headers: { "x-api-key": VALID_API_KEY },
+        headers: { "x-api-key": TEST_API_KEY },
       });
 
       expect(res.status).toBe(200);
@@ -64,7 +63,7 @@ describe("GET /signage/assets", () => {
 
     try {
       const res = await app.request("/signage/assets", {
-        headers: { "x-api-key": VALID_API_KEY },
+        headers: { "x-api-key": TEST_API_KEY },
       });
       const json = await res.json();
       expect(json.assets.find((a: { id: string }) => a.id === id)).toBeUndefined();
@@ -74,6 +73,13 @@ describe("GET /signage/assets", () => {
   });
   test("APIキーがない場合401を返す", async () => {
     const res = await app.request("/signage/assets");
+    expect(res.status).toBe(401);
+  });
+
+  test("APIキーが間違っている場合401を返す", async () => {
+    const res = await app.request("/signage/assets", {
+      headers: { "x-api-key": "wrong-api-key" },
+    });
     expect(res.status).toBe(401);
   });
   });
