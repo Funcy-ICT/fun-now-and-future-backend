@@ -1,10 +1,10 @@
-const VALID_API_KEY = "funcy_esp32_secret_key_2026";
+import { getApiKey } from "../lib/api_key";
 
-export const sensorAuthMiddleware = async (key: string | undefined) => {
+export const sensorAuthMiddleware = (key: string | undefined) => {
 
-  if (!key || key !== VALID_API_KEY) {
-    return 0;
-  } else {
+  if (!key || key !== getApiKey()) {
     return -1;
+  } else {
+    return 0;
   }
 }

@@ -3,6 +3,7 @@ import { app } from "./app";
 import { SignageAssetsResponseSchema } from "./schema/api/signage";
 
 const VALID_API_KEY = "funcy_esp32_secret_key_2026";
+import { TEST_API_KEY } from "./testing/api_key";
 
 describe("GET /signage/assets", () => {
   const originalBucket = process.env.PR_ASSET_BUCKET;
@@ -32,7 +33,7 @@ describe("GET /signage/assets", () => {
 
     try {
       const res = await app.request("/signage/assets", {
-        headers: { "x-api-key": VALID_API_KEY },
+        headers: { "x-api-key": TEST_API_KEY },
       });
 
       expect(res.status).toBe(200);
@@ -66,7 +67,7 @@ describe("GET /signage/assets", () => {
 
     try {
       const res = await app.request("/signage/assets", {
-        headers: { "x-api-key": VALID_API_KEY },
+        headers: { "x-api-key": TEST_API_KEY },
       });
       const json = await res.json();
       expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
@@ -77,6 +78,13 @@ describe("GET /signage/assets", () => {
   });
   test("APIキーがない場合401を返す", async () => {
     const res = await app.request("/signage/assets");
+    expect(res.status).toBe(401);
+  });
+
+  test("APIキーが間違っている場合401を返す", async () => {
+    const res = await app.request("/signage/assets", {
+      headers: { "x-api-key": "wrong-api-key" },
+    });
     expect(res.status).toBe(401);
   });
   });

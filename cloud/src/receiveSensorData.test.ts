@@ -4,6 +4,7 @@ import { hashMac } from "./services/mac";
 import { publishScanEvent } from "./repositories/pubsub";
 import { ErrorResponseSchema } from "./schema/api/common";
 import { ReceiveSensorDataResponseSchema } from "./schema/api/sensor";
+import { TEST_API_KEY } from "./testing/api_key";
 
 jest.mock("./repositories/pubsub");
 
@@ -11,7 +12,7 @@ const post = (body: unknown) => app.request("/receiveSensorData", {
 	method: "POST",
 	headers: {
 		"Content-Type": "application/json",
-		"x-api-key": "funcy_esp32_secret_key_2026",
+		"x-api-key": TEST_API_KEY,
 	},
 	body: JSON.stringify(body),
 });
@@ -29,7 +30,7 @@ describe("receiveSensorData", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"x-api-key": "funcy_esp32_secret_key_2026",
+				"x-api-key": TEST_API_KEY,
 			},
 			body: JSON.stringify({
 				"nodeId": "node-01",

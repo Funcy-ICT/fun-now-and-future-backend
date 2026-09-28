@@ -131,6 +131,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
+| `ESP32_API_KEY` | ESP32とサイネージが、ヘッダー`x-api-key`で送るAPIキー。Secret Managerの値を環境変数にマウントして渡す。受信のサービスでは必須で、未設定だと起動に失敗する | （値はリポジトリに置かない） |
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
 | `BQ_DATASET` | BigQueryのデータセット名。テストではテスト用のデータセットに切り替える | `fnaf_analytics` |
 | `BQ_MAX_BYTES_BILLED` | 1回のクエリで課金されるバイト数の上限。未設定なら5GiB。超えるクエリは実行されずに失敗する | `5368709120` |
@@ -147,7 +148,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 | `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/internal/batch/calc-max-device`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
 | （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
 
-* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`が無いと起動に失敗する。`worker`はどちらも要らない
+* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`はどれも要らない
 * `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
 * Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
 * Cloud Schedulerは、`worker`の`/aggregate`にOIDCトークン付きで、`1-59/5 * * * *`（窓が閉じた1分後）で呼ぶ

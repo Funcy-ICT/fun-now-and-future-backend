@@ -35,6 +35,7 @@ jobs:
         env:
           MAC_HASH_KEY: ci-smoke-test-key-not-a-secret-0123456789
           SCAN_EVENTS_TOPIC: ci-smoke-test-topic
+          ESP32_API_KEY: ci-smoke-test-api-key-not-a-secret
         run: |
           node lib/index.js &
           SERVER_PID=$!
