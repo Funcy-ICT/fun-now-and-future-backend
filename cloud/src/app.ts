@@ -28,6 +28,17 @@ const healthRoute = createRoute({
   },
 });
 
+const healthRoutes = new OpenAPIHono()
+  .openapi(healthRoute, (c) => c.json({ status: "ok" as const, message: "Backend is running" }, 200));
+
+//管理画面からhono rpcで呼ぶルート。ルートの型を残すため、メソッドチェーンでつなぐ。
+//esp32から呼ぶ/receiveSensorDataと、内部用のルートは入れない
+const clientRoutes = new OpenAPIHono()
+  .route("/", healthRoutes)
+  .route("/", congestionRoute);
+
+export type AppType = typeof clientRoutes;
+
 //ルートを一つにまとめる。swaggerの定義をまとめられるよう、OpenAPIHonoにする
 export const createApp = (role: ServiceRole): OpenAPIHono => {
   const app = new OpenAPIHono();
@@ -35,7 +46,7 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
   //アプリ全体のエラーハンドラーとして登録
   app.onError(errorHandler);
 
-  app.openapi(healthRoute, (c) => c.json({ status: "ok" as const, message: "Backend is running" }, 200));
+  app.route("/", healthRoutes);
 
   //公開するサービス。esp32とサイネージからのリクエストを受ける
   if (role !== "worker") {

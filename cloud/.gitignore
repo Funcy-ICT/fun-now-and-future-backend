@@ -11,3 +11,6 @@ node_modules/
 
 # macOS
 **/.DS_Store
+
+# 管理画面が読む型定義(npm run build:types)
+types/

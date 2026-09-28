@@ -6,12 +6,6 @@ import { signageAuthMiddleware } from "../middlewares/signage_auth";
 import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema, SignageAssetsResponseSchema } from "../schema/api/signage";
 import { ErrorResponseSchema } from "../schema/api/common";
 
-// swaggerの定義から、リクエストの検証とレスポンスの型が決まる。検証に失敗したときは、これまでと同じ形の400を返す
-export const congestionRoute = new OpenAPIHono({
-  defaultHook: (result, c) =>
-    result.success ? undefined : c.json({ status: "error" as const, message: result.error.issues[0].message }, 400),
-});
-
 const jsonContent = <T,>(schema: T, description: string) => ({
   content: { "application/json": { schema } },
   description,
@@ -43,41 +37,6 @@ const getCongestionHistoryRoute = createRoute({
   },
 });
 
-congestionRoute.openapi(getCongestionRoute, async (c) => {
-  const { location } = c.req.valid("query");
-
-  const status = await getCongestionStatus(location);
-  if (status === null) {
-    return c.json({
-      status: "error" as const,
-      message: "No data found",
-    }, 404);
-  }
-
-  return c.json({
-    status: "success" as const,
-    data: status,
-  }, 200);
-})
-
-congestionRoute.openapi(getCongestionHistoryRoute, async (c) => {
-  const { location, limit } = c.req.valid("query");
-
-  const history = await getCongestionHistoryStatus(location, limit);
-  if (history.length === 0) {
-    return c.json({
-      status: "error" as const,
-      message: "No history data found",
-    }, 404);
-  }
-
-  return c.json({
-    status: "success" as const,
-    count: history.length,
-    data: history,
-  }, 200);
-})
-
 // APIキーの確認はmiddlewareで行う。クエリやボディの検証より先に動くので、キーが無ければ401を返す
 const getSignageAssetsRoute = createRoute({
   method: "get",
@@ -94,7 +53,46 @@ const getSignageAssetsRoute = createRoute({
   },
 });
 
-congestionRoute.openapi(getSignageAssetsRoute, async (c) => {
-  const assets = await listPublishedPrAssets();
-  return c.json({ assets }, 200);
-});
+// swaggerの定義から、リクエストの検証とレスポンスの型が決まる。検証に失敗したときは、これまでと同じ形の400を返す
+// hono rpcでルートの型が残るよう、ハンドラーはメソッドチェーンでつなぐ
+export const congestionRoute = new OpenAPIHono({
+  defaultHook: (result, c) =>
+    result.success ? undefined : c.json({ status: "error" as const, message: result.error.issues[0].message }, 400),
+})
+  .openapi(getCongestionRoute, async (c) => {
+    const { location } = c.req.valid("query");
+
+    const status = await getCongestionStatus(location);
+    if (status === null) {
+      return c.json({
+        status: "error" as const,
+        message: "No data found",
+      }, 404);
+    }
+
+    return c.json({
+      status: "success" as const,
+      data: status,
+    }, 200);
+  })
+  .openapi(getCongestionHistoryRoute, async (c) => {
+    const { location, limit } = c.req.valid("query");
+
+    const history = await getCongestionHistoryStatus(location, limit);
+    if (history.length === 0) {
+      return c.json({
+        status: "error" as const,
+        message: "No history data found",
+      }, 404);
+    }
+
+    return c.json({
+      status: "success" as const,
+      count: history.length,
+      data: history,
+    }, 200);
+  })
+  .openapi(getSignageAssetsRoute, async (c) => {
+    const assets = await listPublishedPrAssets();
+    return c.json({ assets }, 200);
+  });

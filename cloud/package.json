@@ -3,6 +3,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "build:types": "tsc -p tsconfig.types.json",
     "start": "node lib/index.js",
     "dev": "tsx watch src/index.ts",
     "test": "firebase emulators:exec --only firestore,pubsub --project demo-fnaf \"jest\"",
