@@ -12,6 +12,7 @@
   "dependencies": {
     "@heroui/react": "^3.2.4",
     "@tailwindcss/vite": "^4.3.3",
+    "hono": "^4.12.31",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"
