@@ -18,6 +18,42 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
   にするため
 
 
+## 管理画面との型の共有（Hono RPC）
+管理画面（`admin/`）などのフロントからは、`hono/client`の`hc`で呼ぶ。バックエンドのルートの型から、パス、クエリ、
+レスポンスの型が決まる。バックエンドとずれると、フロントの型チェックでエラーになる。
+
+* 型は`src/app.ts`の`AppType`。入っているのは`/health`とサイネージ向けのルートだけで、`/receiveSensorData`と内部用の
+  ルートは入れていない
+* ルートを足すときは、`.openapi(...)`をメソッドチェーンでつなぐ。`app.openapi(...)`を別の文で書くと、型に残らない
+* `npm run build:types`で、`types/`に型定義（`.d.ts`）を出力する。フロントが読むのは`types/app.d.ts`だけで、ほかの
+  ファイルは出力のついでにできるもの。`types/`はgitに入れない
+
+### フロントから使うとき
+`types/app.d.ts`の`AppType`を、型だけ読む（例: `admin/src/lib/api.ts`）。
+
+```ts
+import { hc } from "hono/client";
+import type { AppType } from "../../../cloud/types/app"; // .d.tsは書かない
+
+const api = hc<AppType>(import.meta.env.VITE_API_BASE_URL);
+const res = await api.getCongestion.$get({ query: { location: "cafeteria" } });
+if (res.status === 200) {
+  const json = await res.json(); // 200のレスポンスの型になる
+}
+```
+
+* 最初に`cloud/`で`npm install`と`npm run build:types`を実行する。`types/`がgitに無いので、しないと型が見つからない
+* 管理画面の`npm run build`は、先に`build:types`を実行する。`npm run dev`で開発するときは、バックエンドのルートを
+  変えたら`npm run build:types`をやり直す。やり直さないと、型が古いまま
+* `import type`で読む。型だけなので、フロントのバンドルには何も入らない
+* `hono`のバージョンは、`cloud/`とフロントで揃える
+* レスポンスの型に名前を付けたいときは、自分で書かずに`hono/client`の`InferResponseType`を使う
+  （例: `InferResponseType<typeof api.getCongestion.$get, 200>`）
+* 相対パスで読むので、使えるのは同じリポジトリの中のフロントだけ。別のリポジトリからは、`/doc`のOpenAPIから型を作る
+* CORSはまだ設定していない。ブラウザで別のオリジンから呼ぶには、バックエンドに`hono/cors`を入れるか、開発中は
+  Viteのproxyを使う（未定）
+
+
 ## お約束
 
 ### Github
@@ -54,6 +90,7 @@ ESP32 から送信される BLE 検知データを処理し、Firestore への�
 * Database - Firebase Firestore（`firebase-admin`経由でアクセス。Cloud Run上でもFirestore自体は独立して利用可能）
 * Object Storage - Google Cloud Storage（公開バケット。広報アセット配信用。`allUsers`に`roles/storage.legacyObjectReader`のみ付与し、一覧表示権限は与えない）
 * Validation - Zod
+* API の仕様 - `@hono/zod-openapi`（Swagger）、Hono RPC（管理画面との型の共有）
 * Testing - Jest / Hono `app.request`（Firestoreエミュレータを使用）
 * Deploy - Docker → Cloud Run
 
