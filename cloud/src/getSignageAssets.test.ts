@@ -1,8 +1,6 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
 import { SignageAssetsResponseSchema } from "./schema/api/signage";
-
-const VALID_API_KEY = "funcy_esp32_secret_key_2026";
 import { TEST_API_KEY } from "./testing/api_key";
 
 describe("GET /signage/assets", () => {
