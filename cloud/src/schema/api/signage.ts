@@ -4,7 +4,7 @@ import { z } from "@hono/zod-openapi";
 // GET /getCongestion のクエリ
 export const LocationQuerySchema = z.object({
   location: z.string().min(1, "location query parameter is required").openapi({
-    description: "場所のID。一覧はREADMEの「ロケーションIDの一覧」",
+    description: "場所のID。一覧はdocs/configuration.mdの「ロケーションIDの一覧」",
     example: "cafeteria",
   }),
 });
