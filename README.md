@@ -4,6 +4,17 @@
 ESP32 から送信される BLE 検知データを処理し、Firestore への保存およびサイネージ・アプリ向けの混雑度データ提供を行います。
 
 
+## 読む人ごとの入口
+全体の構成図と、仕様がどこに書いてあるかは、[docs/overview.md](docs/overview.md) にまとめている。
+
+| 読む人 | 最初に読むもの | そのあと |
+| --- | --- | --- |
+| バックエンド | [docs/overview.md](docs/overview.md) | このREADMEの「ローカル開発・テスト手順」、[ADRの一覧](docs/adr/README.md) |
+| フロント（サイネージ） | [docs/overview.md](docs/overview.md) | [#25](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/25)（レスポンスの読み方）、Swagger（`/ui`）、フロント向けの[#56](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/56) |
+| フロント（管理画面） | [docs/overview.md](docs/overview.md) | このREADMEの「管理画面との型の共有（Hono RPC）」、[ADR 0005](docs/adr/0005-admin-ui-library.md) |
+| ハード（ESP32） | [docs/overview.md](docs/overview.md) | Swaggerの`POST /receiveSensorData`、[#35](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/35) |
+
+
 ## API の仕様（Swagger）
 公開するエンドポイントの仕様は、コードの定義（`@hono/zod-openapi`）から自動で作られる。
 
@@ -223,7 +234,7 @@ BigQueryサブスクリプションでメタデータの書き込みを有効に
 | `GET /getCongestionHistory` | サイネージ、アプリ | なし | 指定したlocationの混雑度の履歴 |
 | `GET /signage/assets` | サイネージ | `x-api-key` | 掲載中の広報アセットの一覧 |
 
-* レスポンス契約の詳細は`api_contract_congestion_endpoints.md`（フロント向け）を参照
+* `level`が`null`のときの読み方など、フロント向けの説明は[#25](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/25)
 
 ### 内部用のエンドポイント
 `worker`だけに載る。Swaggerには載らないので、ここに書く。
