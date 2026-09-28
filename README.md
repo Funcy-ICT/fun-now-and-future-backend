@@ -339,13 +339,15 @@ npm run build
 ```
 
 ### 3. ローカルでサーバーを起動
-`SERVICE_ROLE`が未設定だと受信のルートも載るので、`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`が無いと起動に失敗する。
+`SERVICE_ROLE`が未設定だと受信のルートも載るので、`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。
 ローカルでは、ダミーの値を渡す。
 ```bash
-MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events npm start
+MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY=local-dev-key npm start
 ```
 `http://localhost:8080` で待ち受けます（`PORT`環境変数で変更可）。`/ui`でSwagger UIを開ける。
 * 鍵は、起動のたびにランダムなダミーを作る。本物の鍵を、コマンドの履歴やファイルに残さないため
+* `ESP32_API_KEY`は、ローカル用のダミー（`local-dev-key`）。Swagger UIで`/signage/assets`などを試すときは、
+  「Authorize」にこの値を入れる。本物のキーは使わない
 * Swagger UIの「Try it out」で、Firestoreを読むルート（`/getCongestion`など）を試すときは、エミュレータを起動して
   `FIRESTORE_EMULATOR_HOST`を渡す。エミュレータも8080番を使うので、サーバーは`PORT`を変える。渡さないと、本物の
   プロジェクトにつなぎに行くことがある
@@ -353,7 +355,7 @@ MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events npm start
   firebase emulators:start --only firestore --project demo-fnaf
   # 別のターミナルで
   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-fnaf PORT=3000 \
-    MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events npm start
+    MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY=local-dev-key npm start
   ```
   このときのSwagger UIは`http://localhost:3000/ui`
 * `/receiveSensorData`は、ローカルでは試せない。Pub/Subにpublishするが、`firebase.json`にPub/Subのエミュレータの
@@ -383,7 +385,8 @@ GCLOUD_PROJECT=fun-now-and-future BQ_DATASET=fnaf_analytics_test npm run test:sq
 ```bash
 cd cloud
 docker build -t fun-now-and-future-backend .
-docker run -p 8080:8080 -e MAC_HASH_KEY=$(openssl rand -hex 32) -e SCAN_EVENTS_TOPIC=scan-events fun-now-and-future-backend
+docker run -p 8080:8080 -e MAC_HASH_KEY=$(openssl rand -hex 32) -e SCAN_EVENTS_TOPIC=scan-events \
+  -e ESP32_API_KEY=local-dev-key fun-now-and-future-backend
 curl http://localhost:8080/health
 ```
 
