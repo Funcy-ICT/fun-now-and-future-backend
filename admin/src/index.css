@@ -1,3 +1,13 @@
+@import "tailwindcss";
+
+@theme static {
+  --spacing-1: 0.25rem; /* 4px  - xs */
+  --spacing-2: 0.5rem;  /* 8px  - sm */
+  --spacing-3: 1rem;    /* 16px - md */
+  --spacing-4: 1.5rem;  /* 24px - lg */
+  --spacing-5: 2rem;    /* 32px - xl */
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
