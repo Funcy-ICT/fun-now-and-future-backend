@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroui/button": "^2.2.32",
     "@heroui/react": "^3.2.6",
     "@heroui/system": "^2.4.28",
     "framer-motion": "^14.0.0",
@@ -20,6 +21,9 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@heroui/theme": "^2.4.26",
+    "@tailwindcss/node": "^4.3.3",
+    "@tailwindcss/oxide": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.19.1",
@@ -29,7 +33,10 @@
     "eslint": "^10.9.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
+    "eslint-plugin-tailwindcss": "^4.0.0-alpha.1",
     "globals": "^17.11.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.67.0",

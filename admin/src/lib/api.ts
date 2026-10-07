@@ -4,4 +4,6 @@ import { hc } from "hono/client";
 import type { AppType } from "../../../cloud/types/app";
 
 // バックエンドのルートの型から、パス、クエリ、レスポンスの型が決まる
-export const api = hc<AppType>(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080");
+export const api = hc<AppType>(
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080",
+);
