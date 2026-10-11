@@ -14,6 +14,14 @@ export const ConfigMetaSchema = z.object({
 });
 export type ConfigMeta = z.infer<typeof ConfigMetaSchema>;
 
+// 設定を読んだ結果。管理画面は、保存するときにこのversionを送る。一度も保存していなければ、versionは0、日時と人はnull
+export type StoredConfig<T> = {
+  value: T;
+  version: number;
+  updatedAt: Timestamp | null;
+  updatedBy: string | null;
+};
+
 // config_history/{name}__{version}。設定を保存するたびに1件足す。
 // 段の種類やパラメータは後から変わるので、前後の値の中身は検証せず、保存したときの形のまま残す
 export const ConfigHistorySchema = z.object({
