@@ -48,6 +48,16 @@
 
 `max_devices/{location}_{weekday}` は、基準値計算バッチが自動生成するまでの間（運用開始直後・長期休業明けなど）、手動でFirestoreコンソールから投入する必要がある場合がある（下記「基準値の手動投入」参照）。
 
+## 設定の変更の履歴
+
+管理画面から変える設定（`config/filter_pipeline`、`config/baseline`、`config/retention`）は、値と同じドキュメントに`version`、`updatedAt`、`updatedBy`を持つ。
+
+* 保存のたびに`version`を1つ増やし、`config_history/{設定名}__{version}`に、変更の前と後の値、日時、変更した人を残す。設定と履歴は1つのトランザクションで書く
+* 画面が読んだときの`version`と、保存するときの`version`が違えば、保存しない（別の保存が先に入っている）
+* `version`が無いドキュメント（コンソールで作ったもの）は、0とみなす
+* Firestoreコンソールで直接変えた分は、`version`も履歴も変わらない
+* 今あるのは保存の処理（`updateConfigWithHistory`）だけ。管理画面から呼ぶエンドポイントは、認証（Cloudflare Access）が入ってから作る
+
 ## 基準値の計算バッチの設定（`config/baseline`）
 | 項目 | 既定値 | 意味 |
 | --- | --- | --- |
