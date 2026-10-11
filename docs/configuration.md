@@ -45,12 +45,13 @@
 | `config/retention` | BigQueryの保持期間（`scanEventsDays`。`null`は無期限）。最後に適用できた値を残すもので、実際の保持期間はBigQuery側のパーティションの有効期限で決まる | 任意。無ければ未設定（無期限） |
 | `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。**未実装**（統計判定のみで動作する） |
 | `config/baseline` | 基準値計算バッチの設定。`defaults`（全体）と`locations.{location}`（locationごとの上書き）を持つ | 任意。無ければコードに書いた既定値を使う |
+| `config/nodes` | ノードの表示名（`displayName`）と撤去済みの印（`retired`）。キーは`nodeId`。台数には影響しない | 任意。無ければ空として扱う |
 
 `max_devices/{location}_{weekday}` は、基準値計算バッチが自動生成するまでの間（運用開始直後・長期休業明けなど）、手動でFirestoreコンソールから投入する必要がある場合がある（下記「基準値の手動投入」参照）。
 
 ## 設定の変更の履歴
 
-管理画面から変える設定（`config/filter_pipeline`、`config/baseline`、`config/retention`）は、値と同じドキュメントに`version`、`updatedAt`、`updatedBy`を持つ。
+管理画面から変える設定（`config/filter_pipeline`、`config/baseline`、`config/retention`、`config/nodes`）は、値と同じドキュメントに`version`、`updatedAt`、`updatedBy`を持つ。
 
 * 保存のたびに`version`を1つ増やし、`config_history/{設定名}__{version}`に、変更の前と後の値、日時、変更した人を残す。設定と履歴は1つのトランザクションで書く
 * 画面が読んだときの`version`と、保存するときの`version`が違えば、保存しない（別の保存が先に入っている）
