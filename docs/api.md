@@ -55,7 +55,14 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
 * 窓に送ってきたノードの、locationと最終受信時刻を`status/node_last_seen`に記録する。一度でも送ってきたノードを
-  覚えておき、止まったノードを見つけるために使う。窓に受信が無ければ、読み書きしない
+  覚えておき、止まったノードを見つけるために使う
+* ノードの停止と復旧を判定し、状態が変わったときだけ、1行のJSONのログを出す（`event`は`node_down`か`node_recovered`）。
+  メールは、このログを使ったCloud Loggingのアラートで送る
+  * 停止: 受信が2窓（10分）続けて無い。受信の無い2つの窓が、どちらもそのノードのlocationの稼働時間帯
+    （`config/baseline`の`operatingStartHour`、`operatingEndHour`）の中にあるときだけ判定する
+  * 復旧: 止まっているノードから受信があった
+  * `config/nodes`で撤去済み（`retired`）にしたノードは判定しない
+  * 判定に失敗しても、集計は止めずにログに残す
 * そのとき使ったフィルタの設定のハッシュ（`configHash`）を、`congestion_records`に記録する。設定を変えると台数の
   意味が変わるため、どの設定で数えた値かを後から見分けられるようにする。この項目が無い既存のレコードも読める
 * 集計結果の履歴を、`AGGREGATE_RUNS_TOPIC`にpublishする（BigQueryの`aggregate_runs`用）。1回の集計につき1件で、

@@ -62,7 +62,7 @@
 ## 基準値の計算バッチの設定（`config/baseline`）
 | 項目 | 既定値 | 意味 |
 | --- | --- | --- |
-| `operatingStartHour` / `operatingEndHour` | 7 / 22 | 稼働時間帯（JSTの時）。センサーが夜間に止まる場合はlocationごとに変える |
+| `operatingStartHour` / `operatingEndHour` | 7 / 22 | 稼働時間帯（JSTの時）。センサーが夜間に止まる場合はlocationごとに変える。ノードの停止の判定にも使う |
 | `completenessRatio` | 0.8 | 完全性ゲート |
 | `gateRatio` | 0.5 | 水準ゲート |
 | `refMedianWeeks` | 26 | `refMedian`を作る期間。最長の休業が少数派に収まる長さ |
