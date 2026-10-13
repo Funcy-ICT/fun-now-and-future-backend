@@ -1,6 +1,8 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { NodeLastSeen } from "../schema/node_last_seen";
 import { jstHour } from "./jst";
+import { resolveSettings } from "./baseline_settings";
+import { getBaselineConfig, getNodeLastSeen, getNodesConfig, saveNodeLastSeen } from "../repositories/firestore";
 
 // その窓に送ってきたノードの、locationと最終受信時刻を更新する。初めてのノードは、動いている状態で足す。
 // 状態(state)は変えない。遅れて集計した古い窓では、最終受信時刻を戻さない
@@ -74,6 +76,38 @@ export const judgeNodes = (input: NodeJudgeInput): { lastSeen: NodeLastSeen; tra
   }
 
   return { lastSeen: { nodes }, transitions };
+};
+
+// /aggregateから呼ぶ。この窓の受信を最終受信時刻に反映し、停止と復旧を判定して、変わったノードをログに出す。
+// ログは保存のあとに出す。保存に失敗したら、次の窓でもう一度判定し直すため
+export const monitorNodes = async (
+  seen: { nodeId: string; location: string }[],
+  windowStart: Timestamp,
+): Promise<void> => {
+  const current = await getNodeLastSeen();
+  if (seen.length === 0 && Object.keys(current.nodes).length === 0) return;
+
+  const [baselineConfig, nodesConfig] = await Promise.all([getBaselineConfig(), getNodesConfig()]);
+  const retiredNodeIds = new Set(
+    Object.entries(nodesConfig.value.nodes).filter(([, settings]) => settings.retired === true).map(([nodeId]) => nodeId),
+  );
+
+  const { lastSeen, transitions } = judgeNodes({
+    lastSeen: recordLastSeen(current, seen, windowStart),
+    seenNodeIds: new Set(seen.map(s => s.nodeId)),
+    windowStart,
+    retiredNodeIds,
+    operatingHours: (location) => {
+      const settings = resolveSettings(baselineConfig, location);
+      return { startHour: settings.operatingStartHour, endHour: settings.operatingEndHour };
+    },
+  });
+
+  // 受信も状態の変化も無ければ、記録は変わらないので書かない
+  if (seen.length > 0 || transitions.length > 0) {
+    await saveNodeLastSeen(lastSeen);
+  }
+  transitions.forEach(logNodeTransition);
 };
 
 // Cloud Loggingで絞り込めるよう、1行のJSONで出す。メールはこのログのアラートで送る
