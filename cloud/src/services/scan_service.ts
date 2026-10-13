@@ -31,13 +31,26 @@ export const normalizeDevice = (device: Device): ParsedDevice => {
 };
 
 
+// 端末を検出したノードとRSSI
+export type Detection = { nodeId: string; rssi: number };
+
+// パイプラインを流れる端末。重複排除の前は検出1件で、重複排除のあとは同じmacの検出をすべて持つ。
+// rssi, companyIdなどは、最も強い検出の値
+export type PipelineDevice = ParsedDevice & { detections: Detection[] };
+
+export const toPipelineDevice = (device: ParsedDevice, nodeId: string): PipelineDevice => ({
+  ...device,
+  detections: [{ nodeId, rssi: device.rssi }],
+});
+
 export type DedupedDevice = {
-  device: ParsedDevice;
+  device: PipelineDevice;
   uuid: string;
   count: number;
 };
 
-export const dedupeByMac = (devices: ParsedDevice[]): DedupedDevice[] => {
+// 同じmacの検出をまとめる。代表(rssi, companyIdなど)はRSSIが最も強い検出にし、検出はすべて残す
+export const dedupeByMac = (devices: PipelineDevice[]): DedupedDevice[] => {
   const macToUuid = new Map<string, string>(); // この呼び出し(=1回の集計run)限りの対応表。実際のmacは戻り値に含めない
   const bestByUuid = new Map<string, DedupedDevice>();
 
@@ -50,24 +63,26 @@ export const dedupeByMac = (devices: ParsedDevice[]): DedupedDevice[] => {
 
     const current = bestByUuid.get(uuid);
     if (current === undefined) {
-      bestByUuid.set(uuid, { device, uuid, count: 1 });
+      bestByUuid.set(uuid, { device: { ...device, detections: [...device.detections] }, uuid, count: 1 });
     } else {
       current.count += 1;
-      if (device.rssi > current.device.rssi) current.device = device;
+      const detections = [...current.device.detections, ...device.detections];
+      current.device = device.rssi > current.device.rssi ? { ...device, detections } : { ...current.device, detections };
     }
   }
 
   return [...bestByUuid.values()];
 };
 
+// locationごとにまとめる。どのノードの検出かは、検出ごとに残す
 export const groupByLocation = (
   scans: ParsedSensorData[],
-): Map<string, ParsedDevice[]> => {
-  const byLocation = new Map<string, ParsedDevice[]>();
+): Map<string, PipelineDevice[]> => {
+  const byLocation = new Map<string, PipelineDevice[]>();
 
   for (const scan of scans) {
     const devices = byLocation.get(scan.location) ?? [];
-    devices.push(...scan.devices);
+    devices.push(...scan.devices.map(device => toPipelineDevice(device, scan.nodeId)));
     byLocation.set(scan.location, devices);
   }
 
@@ -127,14 +142,15 @@ export const aggregateWindow = (now: Date): { start: Timestamp; end: Timestamp }
   return { start, end: Timestamp.fromMillis(start.toMillis() + WINDOW_MS) };
 };
 
+// どれか1件の検出が閾値以上なら残す。閾値が1つなら、最も強い検出(rssi)で判定するのと同じ
 export const filterByRssi = (
-  devices: ParsedDevice[],
+  devices: PipelineDevice[],
   minRssi: number
-): ParsedDevice[] => {
-  return devices.filter(device => device.rssi >= minRssi);
+): PipelineDevice[] => {
+  return devices.filter(device => device.detections.some(detection => detection.rssi >= minRssi));
 }
 
-type StageFn = (devices: ParsedDevice[], config: StageConfig) => ParsedDevice[];
+type StageFn = (devices: PipelineDevice[], config: StageConfig) => PipelineDevice[];
 
 export const STAGE_REGISTRY: Record<string, StageFn> = {
   dedupe: (devices) => dedupeByMac(devices).map(d => d.device),
@@ -160,12 +176,12 @@ export type StageTraceEntry = {
 };
 
 export type PipelineResult = {
-  result: ParsedDevice[];
+  result: PipelineDevice[];
   trace: StageTraceEntry[];
   dedupeOutput?: DedupedDevice[]; // dedupe段が実行された場合のみ値が入る
 };
 
-export const runPipeline = (devices: ParsedDevice[], stages: StageConfig[]): PipelineResult => {
+export const runPipeline = (devices: PipelineDevice[], stages: StageConfig[]): PipelineResult => {
   const trace: StageTraceEntry[] = [];
   let current = devices;
   let dedupeOutput: DedupedDevice[] | undefined;

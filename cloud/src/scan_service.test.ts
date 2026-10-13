@@ -1,13 +1,14 @@
-import { runPipeline, STAGE_REGISTRY, aggregateWindow } from "./services/scan_service";
+import { runPipeline, STAGE_REGISTRY, aggregateWindow, toPipelineDevice } from "./services/scan_service";
 import { ParsedDevice } from "./schema/sensor_data";
 
-const device = (overrides: Partial<ParsedDevice> & { mac: string }): ParsedDevice => ({
+// 重複排除の前の、検出1件の端末
+const device = (overrides: Partial<ParsedDevice> & { mac: string }, nodeId = "node-1") => toPipelineDevice({
 	rssi: -60,
 	format: "parsed",
 	companyId: "004C",
 	isNearbyInfo: true,
 	...overrides,
-});
+}, nodeId);
 
 describe("STAGE_REGISTRY.companyFilter", () => {
 	test("allowedCompanyIdsに含まれないcompanyIdは除外", () => {
