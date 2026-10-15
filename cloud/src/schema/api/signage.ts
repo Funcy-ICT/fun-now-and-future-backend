@@ -1,5 +1,6 @@
 // .openapi() で swagger に出す名前を付けるため、z は @hono/zod-openapi から読む(zod を拡張した同じもの)
 import { z } from "@hono/zod-openapi";
+import { PR_ASSET_CONTENT_TYPES } from "../pr_asset";
 
 // GET /getCongestion のクエリ
 export const LocationQuerySchema = z.object({
@@ -60,15 +61,25 @@ export const CongestionHistoryResponseSchema = z.object({
   data: z.array(CongestionHistoryEntrySchema),
 }).openapi("CongestionHistoryResponse");
 
-// 掲載中の広報アセット。実体は返さず、公開バケット上のURLを返す
-export const PrAssetDtoSchema = z.object({
-  id: z.string().openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
-  title: z.string().openapi({ example: "秋のコンテスト告知" }),
-  contentType: z.string().openapi({ description: "画像かPDF", example: "image/jpeg" }),
+// 表示するファイル。実体は返さず、公開バケット上のURLを返す
+export const PrAssetMediaDtoSchema = z.object({
   url: z.url().openapi({
     description: "公開バケット上のURL。実体は、ここから取得する",
     example: "https://storage.googleapis.com/<bucket>/objects/550e8400-e29b-41d4-a716-446655440000",
   }),
+  contentType: z.enum(PR_ASSET_CONTENT_TYPES).openapi({
+    description: "表示の仕方を分けるのに使う",
+    example: "image/jpeg",
+  }),
+}).openapi("PrAssetMedia");
+
+// 掲載中の広報アセット
+export const PrAssetDtoSchema = z.object({
+  id: z.string().openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
+  tag: z.string().openapi({ example: "イベント" }),
+  title: z.string().openapi({ example: "秋のコンテスト告知" }),
+  description: z.string().openapi({ example: "10月31日まで作品を募集しています" }),
+  media: PrAssetMediaDtoSchema,
   publishUntil: z.iso.datetime().nullable().openapi({
     description: "掲載の終了日時。nullなら無期限",
     example: "2026-10-31T14:59:59.000Z",

@@ -21,7 +21,9 @@ describe("GET /signage/assets", () => {
     await db.collection("prAssets").doc(id).set({
       id,
       status: "approved",
+      tag: "イベント",
       title: "秋のコンテスト告知",
+      description: "10月31日まで作品を募集しています",
       contentType: "image/jpeg",
       size: 12345,
       publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
@@ -39,9 +41,13 @@ describe("GET /signage/assets", () => {
       expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
       expect(json.assets).toContainEqual({
         id,
+        tag: "イベント",
         title: "秋のコンテスト告知",
-        contentType: "image/jpeg",
-        url: "https://storage.googleapis.com/test-pr-assets-bucket/objects/signage-asset-test-1",
+        description: "10月31日まで作品を募集しています",
+        media: {
+          url: "https://storage.googleapis.com/test-pr-assets-bucket/objects/signage-asset-test-1",
+          contentType: "image/jpeg",
+        },
         publishUntil: null,
       });
     } finally {
@@ -55,7 +61,9 @@ describe("GET /signage/assets", () => {
     await db.collection("prAssets").doc(id).set({
       id,
       status: "approved",
+      tag: "お知らせ",
       title: "終了済み告知",
+      description: "",
       contentType: "image/jpeg",
       size: 100,
       publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),

@@ -5,7 +5,9 @@ import { PrAsset } from "./schema/pr_asset";
 const baseAsset: PrAsset = {
   id: "asset-1",
   status: "approved",
+  tag: "お知らせ",
   title: "テスト告知",
+  description: "テスト用の説明",
   contentType: "image/jpeg",
   size: 1024,
   publishFrom: Timestamp.fromDate(new Date("2026-01-01T00:00:00Z")),
