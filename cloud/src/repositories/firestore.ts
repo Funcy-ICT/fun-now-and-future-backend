@@ -295,17 +295,22 @@ const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
   debugModeEnabled: false,
 };
 
-export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => {
-  const doc = await db.collection("config").doc("filter_pipeline").get();
-  if (!doc.exists) return DEFAULT_FILTER_PIPELINE_CONFIG;
+// sourceは、保存された値で動いているか(stored)、無いか検証に通らないので既定の構成で動いているか(default)。
+// 検証に通らない値が保存されていても、集計は止まらずに既定の構成で動くので、管理画面で気づけるようにする
+export const readFilterPipelineConfig = async (): Promise<StoredConfig<FilterPipelineConfig> & { source: "stored" | "default" }> => {
+  const data = (await db.collection("config").doc("filter_pipeline").get()).data();
+  const meta = readConfigMeta(data);
+  if (data === undefined) return { value: DEFAULT_FILTER_PIPELINE_CONFIG, source: "default", ...meta };
 
-  const parsed = FilterPipelineConfigSchema.safeParse(doc.data());
+  const parsed = FilterPipelineConfigSchema.safeParse(data);
   if (!parsed.success) {
     console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
-    return DEFAULT_FILTER_PIPELINE_CONFIG;
+    return { value: DEFAULT_FILTER_PIPELINE_CONFIG, source: "default", ...meta };
   }
-  return parsed.data;
+  return { value: parsed.data, source: "stored", ...meta };
 };
+
+export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => (await readFilterPipelineConfig()).value;
 
 export const getRetentionConfig = async (): Promise<RetentionConfig | null> => {
   const doc = await db.collection("config").doc("retention").get();
