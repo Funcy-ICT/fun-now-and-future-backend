@@ -33,7 +33,7 @@ src/
 │   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
 │   ├── analysis.ts        # 生データから、指定した設定で窓・locationごとの台数を数え直す
 │   ├── retention.ts       # BigQueryの保持期間(パーティションの有効期限)の変更
-│   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)
+│   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)、管理画面からの保存と読み出し
 │   ├── nodes_config.ts    # ノードの設定(表示名、撤去済み)の保存と読み出し
 │   ├── jst.ts             # 日本時間の日付・時・稼働時間帯の範囲
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
@@ -53,6 +53,7 @@ src/
 │   ├── api/               # 公開するエンドポイントのリクエストとレスポンス(swaggerとhono rpcで共有)
 │   │   ├── common.ts      # エラーのレスポンス、/health
 │   │   ├── signage.ts     # /getCongestion, /getCongestionHistory, /signage/assets
+│   │   ├── admin_config.ts # 管理画面から受け取る設定の形(保存の時点で厳しく検証する)
 │   │   └── sensor.ts      # /receiveSensorData のレスポンス
 │   ├── sensor_data.ts     # /receiveSensorData のリクエスト
 │   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
