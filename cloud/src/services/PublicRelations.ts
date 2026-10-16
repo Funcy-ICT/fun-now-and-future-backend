@@ -20,9 +20,13 @@ const buildAssetUrl = (id: string): string => {
 
 const toDto = (asset: PrAsset): PrAssetDto => ({
   id: asset.id,
+  tag: asset.tag,
   title: asset.title,
-  contentType: asset.contentType,
-  url: buildAssetUrl(asset.id),
+  description: asset.description,
+  media: {
+    url: buildAssetUrl(asset.id),
+    contentType: asset.contentType,
+  },
   publishUntil: asset.publishUntil === null ? null : asset.publishUntil.toDate().toISOString(),
 });
 

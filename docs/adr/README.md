@@ -12,11 +12,12 @@ fun-now-and-future-backendの設計判断を、1件1ファイルで残す。ま�
 | [0003](0003-pending-scans-one-document-per-post.md) | 受信データはPOST 1回分を1ドキュメントにまとめて保存する | 採用 | 2026-08-06 | #1 |
 | [0004](0004-count-target-filter-and-accessory-exclusion.md) | 全デバイスを保存し、数える対象は集計時に絞る。アクセサリーは数えない | 採用 | 2026-09-05 | #11 |
 | [0005](0005-admin-ui-library.md) | 管理画面のUIにHeroUI + Tailwind CSSを採用する | 採用 | 2026-09-07 | #14 |
-| [0006](0006-signage-asset-delivery.md) | 広報アセットは公開バケットから直接配り、APIは一覧だけを返す | 採用 | 2026-09-13 | #20 |
+| [0006](0006-signage-asset-delivery.md) | 広報アセットは公開バケットから直接配り、APIは一覧だけを返す | 一部を0011で置き換え | 2026-09-13 | #20 |
 | [0007](0007-filter-pipeline.md) | フィルタの段構成を一か所にまとめ、設定で変えられるようにする | 採用 | 2026-09-14 | #22 |
 | [0008](0008-congestion-level-and-baseline.md) | 混雑度は (location, 曜日) ごとの基準値に対する比で9段階にする | 一部を0009で置き換え | 2026-09-14 | #23 |
 | [0009](0009-baseline-valid-days-and-lookback.md) | 基準値は、有効な日をN日集めるまで遡って計算する | 採用（実装は未マージ） | 2026-09-14 | #24 |
 | [0010](0010-raw-data-to-bigquery-via-pubsub.md) | 生データはPub/Sub経由でBigQueryに貯め、表示用の値だけをFirestoreに置く | 採用 | 2026-09-20 | #36, #37 |
+| [0011](0011-signage-asset-list-shape.md) | 広報アセットの一覧に、タグと説明を足し、ファイルのURLと種類をmediaにまとめる | 採用 | 2026-10-15 | #64 |
 
 ## 書き方
 
