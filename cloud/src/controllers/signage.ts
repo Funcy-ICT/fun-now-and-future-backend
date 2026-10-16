@@ -6,8 +6,9 @@ import { signageAuthMiddleware } from "../middlewares/signage_auth";
 import { CongestionHistoryResponseSchema, CongestionResponseSchema, HistoryQuerySchema, LocationQuerySchema, SignageAssetsResponseSchema } from "../schema/api/signage";
 import { ErrorResponseSchema } from "../schema/api/common";
 
-const jsonContent = <T,>(schema: T, description: string) => ({
-  content: { "application/json": { schema } },
+// exampleはルートごとに書く。エラーは共通のスキーマで、無いとmessageが"string"としか出ないため
+const jsonContent = <T,>(schema: T, description: string, example?: unknown) => ({
+  content: { "application/json": { schema, ...(example === undefined ? {} : { example }) } },
   description,
 });
 
@@ -19,8 +20,8 @@ const getCongestionRoute = createRoute({
   request: { query: LocationQuerySchema },
   responses: {
     200: jsonContent(CongestionResponseSchema, "最新の混雑度"),
-    400: jsonContent(ErrorResponseSchema, "クエリが不正"),
-    404: jsonContent(ErrorResponseSchema, "該当するデータが無い"),
+    400: jsonContent(ErrorResponseSchema, "クエリが不正", { status: "error", message: "Invalid input: expected string, received undefined" }),
+    404: jsonContent(ErrorResponseSchema, "該当するデータが無い", { status: "error", message: "No data found" }),
   },
 });
 
@@ -32,8 +33,8 @@ const getCongestionHistoryRoute = createRoute({
   request: { query: HistoryQuerySchema },
   responses: {
     200: jsonContent(CongestionHistoryResponseSchema, "混雑度の履歴"),
-    400: jsonContent(ErrorResponseSchema, "クエリが不正"),
-    404: jsonContent(ErrorResponseSchema, "該当するデータが無い"),
+    400: jsonContent(ErrorResponseSchema, "クエリが不正", { status: "error", message: "Too big: expected number to be <=50" }),
+    404: jsonContent(ErrorResponseSchema, "該当するデータが無い", { status: "error", message: "No history data found" }),
   },
 });
 
@@ -49,7 +50,7 @@ const getSignageAssetsRoute = createRoute({
   security: [{ ApiKeyAuth: [] }],
   responses: {
     200: jsonContent(SignageAssetsResponseSchema, "掲載中の広報アセット"),
-    401: jsonContent(ErrorResponseSchema, "APIキーが無い、または違う"),
+    401: jsonContent(ErrorResponseSchema, "APIキーが無い、または違う", { status: "error", message: "Unauthorized: Invalid or missing API Key" }),
   },
 });
 
