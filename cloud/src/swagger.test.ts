@@ -65,6 +65,22 @@ describe("説明", () => {
 		const body = doc.paths["/receiveSensorData"].post.requestBody.content["application/json"].schema;
 		expect(body.properties.nodeId.example).toBe("esp32_cafeteria_01");
 	});
+
+	test("devicesの例に、parsedとrawの両方がある", async () => {
+		const { doc } = await getDoc("ingest");
+		const body = doc.paths["/receiveSensorData"].post.requestBody.content["application/json"].schema;
+		expect(body.properties.devices.example.map((d: { format: string }) => d.format)).toEqual(["parsed", "raw"]);
+		expect(Object.keys(doc.components.schemas)).toEqual(expect.arrayContaining(["ParsedDevice", "RawDevice"]));
+	});
+
+	test("400の例が、実際に返るメッセージと同じ", async () => {
+		const { doc } = await getDoc("ingest");
+		const app = createApp("ingest");
+		for (const [path, url] of [["/getCongestion", "/getCongestion"], ["/getCongestionHistory", "/getCongestionHistory?location=cafeteria&limit=51"]]) {
+			const example = doc.paths[path].get.responses["400"].content["application/json"].example;
+			expect(await (await app.request(url)).json()).toEqual(example);
+		}
+	});
 });
 
 describe("クエリの検証", () => {

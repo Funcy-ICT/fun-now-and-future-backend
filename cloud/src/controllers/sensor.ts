@@ -44,8 +44,14 @@ sensorRoute.openAPIRegistry.registerPath({
   },
   responses: {
     200: { content: { "application/json": { schema: ReceiveSensorDataResponseSchema } }, description: "受け付けた" },
-    400: { content: { "application/json": { schema: ErrorResponseSchema } }, description: "ボディが不正。再送しても通らない" },
-    401: { content: { "application/json": { schema: ErrorResponseSchema } }, description: "APIキーが無い、または違う" },
+    400: {
+      content: { "application/json": { schema: ErrorResponseSchema, example: { status: "error", message: "mac is invalid" } } },
+      description: "ボディが不正。再送しても通らない",
+    },
+    401: {
+      content: { "application/json": { schema: ErrorResponseSchema, example: { status: "error", message: "Unauthorized: Invalid or missing API Key" } } },
+      description: "APIキーが無い、または違う",
+    },
     500: { description: "publishに失敗した。esp32は再送する" },
   },
 });

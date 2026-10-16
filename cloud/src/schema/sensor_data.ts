@@ -16,16 +16,16 @@ export const deviceBase = {
 
 export const parsedDeviceSchema = z.object({
   ...deviceBase,
-  format: z.literal("parsed").openapi({ description: "esp32でパースした結果を送る" }),
+  format: z.literal("parsed").openapi({ description: "esp32でパースした結果を送る", example: "parsed" }),
   companyId: z.string().length(4).nullable().openapi({ description: "Company ID(16進数4桁)", example: "004C" }),
   isNearbyInfo: z.boolean().openapi({ description: "AppleのNearby Infoを含むか", example: true }),
-});
+}).openapi("ParsedDevice");
 
 export const rawDeviceSchema = z.object({
   ...deviceBase,
-  format: z.literal("raw").openapi({ description: "アドバタイズの生データを送る。クラウドでパースする(Wi-Fi環境を想定)" }),
+  format: z.literal("raw").openapi({ description: "アドバタイズの生データを送る。クラウドでパースする(Wi-Fi環境を想定)", example: "raw" }),
   rawData: z.string().min(1, "rawData is required").openapi({ description: "アドバタイズのデータ(16進数)", example: "02011a020a0c" }),
-});
+}).openapi("RawDevice");
 
 export const devicesSchema = z.discriminatedUnion("format", [parsedDeviceSchema, rawDeviceSchema]);
 
@@ -37,7 +37,12 @@ export const SensorDataSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required").openapi({ example: "esp32_cafeteria_01" }),
   location: z.string().min(1, "location is required").openapi({ example: "cafeteria" }),
   devices: z.array(devicesSchema).max(256, "devices must be 256 or fewer").default([]).openapi({
-    description: "検出した端末。256件まで。0件でもよい",
+    description: "検出した端末。256件まで。0件でもよい。formatで形が変わる(parsed / raw)",
+    // exampleが無いとswaggerはdefault([])を例に出し、macやrawDataの送り方が見えなくなる
+    example: [
+      { mac: "AA:BB:CC:DD:EE:01", rssi: -60, format: "parsed", companyId: "004C", isNearbyInfo: true },
+      { mac: "AA:BB:CC:DD:EE:02", rssi: -72, format: "raw", rawData: "02011a020a0c" },
+    ],
   }),
 });
 
