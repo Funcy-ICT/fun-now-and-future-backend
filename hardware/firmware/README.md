@@ -26,7 +26,8 @@
 | `fnaf_node/frame.*` | LoRa と UART で送るバイナリの形式 |
 | `fnaf_node/e220.*` | LoRa モジュール E220-900T22S(JP) の設定と送信 |
 | `fnaf_node/gateway.*` | LoRa で受けたフレームを1スキャン分にまとめ直して送る |
-| `tools/mock_server.mjs` | 動作確認用の簡易な受け口 |
+| `tools/mock_server.mjs` | 動作確認用の簡易な受け口。`GET /counts`で台数を見られる |
+| `tools/parse_raw_data.mjs` | 受け口が使うパース。バックエンドの`parseRawData.ts`を JavaScript にしたもの |
 
 ## 準備（Arduino IDE）
 
@@ -103,6 +104,11 @@ node hardware/firmware/tools/mock_server.mjs
   ESP32 と Mac は同じネットワークにつなぐ
 - 受け口は、API キー、MAC の書式、RSSI の範囲、台数の上限、`parsed`の項目を調べ、受け取ったら形式、台数、`sendId`を
   ログに出す（MAC は出さない）。Apple の端末らしいものの数も出す
+- 台数は、別のターミナルで`curl -s localhost:8080/counts`を実行して見る（`?limit=20`で行数を変えられる）。
+  送信ごとの台数と、location ごとの5分の窓の台数（MAC の重複を除く。サーバーの集計と同じ区切り）を表で返す。
+  「全部」は検出した端末、「Apple」は Company ID が 004C のもの、「対象」はサーバーが数える Apple の Nearby Info のもの。
+  サーバーはさらに RSSI の閾値で絞るので、本物の台数は「対象」より少なくなることがある。記録はメモリだけで、受け口を
+  止めると消える
 - `FAIL_RATE=0.5 node ...`で、半分の確率で 500 を返す。再送で同じ`sendId`が届くと、ログに`(duplicate sendId)`と出る
 - 検証は本物のサーバーの一部をまねただけ。正しさの基準は本物のサーバー
 
