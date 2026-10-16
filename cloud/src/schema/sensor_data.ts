@@ -16,14 +16,14 @@ export const deviceBase = {
 
 export const parsedDeviceSchema = z.object({
   ...deviceBase,
-  format: z.literal("parsed").openapi({ description: "esp32でパースした結果を送る" }),
+  format: z.literal("parsed").openapi({ description: "esp32でパースした結果を送る", example: "parsed" }),
   companyId: z.string().length(4).nullable().openapi({ description: "Company ID(16進数4桁)", example: "004C" }),
   isNearbyInfo: z.boolean().openapi({ description: "AppleのNearby Infoを含むか", example: true }),
 }).openapi("ParsedDevice");
 
 export const rawDeviceSchema = z.object({
   ...deviceBase,
-  format: z.literal("raw").openapi({ description: "アドバタイズの生データを送る。クラウドでパースする(Wi-Fi環境を想定)" }),
+  format: z.literal("raw").openapi({ description: "アドバタイズの生データを送る。クラウドでパースする(Wi-Fi環境を想定)", example: "raw" }),
   rawData: z.string().min(1, "rawData is required").openapi({ description: "アドバタイズのデータ(16進数)", example: "02011a020a0c" }),
 }).openapi("RawDevice");
 
