@@ -5,7 +5,8 @@ import { ScanEvent } from "../schema/scan_event";
 import { FilterPipelineConfig, FilterPipelineConfigSchema } from "../schema/filter_pipeline";
 import { RetentionConfig, RetentionConfigSchema, RetentionInput } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
-import { ConfigName, ConfigVersionConflictError } from "../schema/config_meta";
+import { ConfigName, ConfigVersionConflictError, StoredConfig } from "../schema/config_meta";
+import { NodesConfig, NodesConfigSchema } from "../schema/nodes_config";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 import { ExcludedDayInput } from "../schema/excluded_day";
 import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
@@ -331,6 +332,30 @@ const CONFIG_META_KEYS = new Set(["version", "updatedAt", "updatedBy"]);
 const withoutConfigMeta = (data: FirebaseFirestore.DocumentData): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !CONFIG_META_KEYS.has(key)));
 
+// versionが無いドキュメント(コンソールで作ったもの)は0とみなす
+const configVersionOf = (data: FirebaseFirestore.DocumentData | undefined): number =>
+  typeof data?.version === "number" ? data.version : 0;
+
+const readConfigMeta = (data: FirebaseFirestore.DocumentData | undefined): Omit<StoredConfig<unknown>, "value"> => ({
+  version: configVersionOf(data),
+  updatedAt: data?.updatedAt instanceof Timestamp ? data.updatedAt : null,
+  updatedBy: typeof data?.updatedBy === "string" ? data.updatedBy : null,
+});
+
+// ノードの設定。無いか検証に通らなければ、空として扱う(撤去済みのノードが無いだけで、集計には影響しない)
+export const getNodesConfig = async (): Promise<StoredConfig<NodesConfig>> => {
+  const data = (await db.collection("config").doc("nodes").get()).data();
+  const meta = readConfigMeta(data);
+  if (data === undefined) return { value: { nodes: {} }, ...meta };
+
+  const parsed = NodesConfigSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error("Invalid data in config/nodes:", parsed.error.issues);
+    return { value: { nodes: {} }, ...meta };
+  }
+  return { value: parsed.data, ...meta };
+};
+
 // 管理画面からの設定の保存。versionを確かめてから、設定と履歴を1つのトランザクションで書き、新しいversionを返す。
 // buildは今のドキュメントを受け取り、書く値を返す。画面から受け取らない項目(debugModeEnabledなど)の引き継ぎに使う。
 export const updateConfigWithHistory = async (
@@ -344,8 +369,7 @@ export const updateConfigWithHistory = async (
 
   return db.runTransaction(async (tx) => {
     const current = (await tx.get(configRef)).data();
-    // versionが無いドキュメント(コンソールで作ったもの)は0とみなす
-    const currentVersion = typeof current?.version === "number" ? current.version : 0;
+    const currentVersion = configVersionOf(current);
     if (currentVersion !== expectedVersion) {
       throw new ConfigVersionConflictError(currentVersion);
     }

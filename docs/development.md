@@ -34,6 +34,7 @@ src/
 │   ├── analysis.ts        # 生データから、指定した設定で窓・locationごとの台数を数え直す
 │   ├── retention.ts       # BigQueryの保持期間(パーティションの有効期限)の変更
 │   ├── filter_config.ts   # フィルタの設定のJSON化とハッシュ(configHash)
+│   ├── nodes_config.ts    # ノードの設定(表示名、撤去済み)の保存と読み出し
 │   ├── jst.ts             # 日本時間の日付・時・稼働時間帯の範囲
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
 │   ├── baseline_settings.ts # 基準値の設定の解決(locationの上書き→全体の既定値→コードの既定値)
@@ -66,6 +67,7 @@ src/
 │   ├── retention.ts       # BigQueryの保持期間の設定、config/retention
 │   ├── baseline_settings.ts # 基準値の設定と、コードに書いた既定値
 │   ├── config_meta.ts     # 管理画面から変える設定に共通の項目(version)、変更の履歴config_history
+│   ├── nodes_config.ts    # ノードの設定、config/nodes
 │   ├── daily_summary.ts   # daily_summaries
 │   └── excluded_day.ts    # excluded_records
 └── lib/
