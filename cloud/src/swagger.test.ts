@@ -65,6 +65,13 @@ describe("説明", () => {
 		const body = doc.paths["/receiveSensorData"].post.requestBody.content["application/json"].schema;
 		expect(body.properties.nodeId.example).toBe("esp32_cafeteria_01");
 	});
+
+	test("devicesの例に、parsedとrawの両方がある", async () => {
+		const { doc } = await getDoc("ingest");
+		const body = doc.paths["/receiveSensorData"].post.requestBody.content["application/json"].schema;
+		expect(body.properties.devices.example.map((d: { format: string }) => d.format)).toEqual(["parsed", "raw"]);
+		expect(Object.keys(doc.components.schemas)).toEqual(expect.arrayContaining(["ParsedDevice", "RawDevice"]));
+	});
 });
 
 describe("クエリの検証", () => {
