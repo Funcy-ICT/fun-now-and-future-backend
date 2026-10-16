@@ -10,23 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@heroui/button": "^2.2.32",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
-    "@heroui/system": "^2.4.28",
-    "framer-motion": "^14.0.0",
     "hono": "^4.12.31",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@heroui/theme": "^2.4.26",
-    "@tailwindcss/node": "^4.3.3",
-    "@tailwindcss/oxide": "^4.3.3",
-    "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/jest": "^30.0.0",
     "@types/node": "^24.19.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
