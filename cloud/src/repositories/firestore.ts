@@ -5,6 +5,7 @@ import { ScanEvent } from "../schema/scan_event";
 import { FilterPipelineConfig, FilterPipelineConfigSchema } from "../schema/filter_pipeline";
 import { RetentionConfig, RetentionConfigSchema, RetentionInput } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
+import { ConfigName, ConfigVersionConflictError } from "../schema/config_meta";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 import { ExcludedDayInput } from "../schema/excluded_day";
 import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
@@ -322,6 +323,47 @@ export const saveRetentionConfig = async (input: RetentionInput, updatedBy: stri
     ...input,
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy,
+  });
+};
+
+// versionなどは履歴の側に持つので、履歴の前後の値からは外す
+const CONFIG_META_KEYS = new Set(["version", "updatedAt", "updatedBy"]);
+const withoutConfigMeta = (data: FirebaseFirestore.DocumentData): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(data).filter(([key]) => !CONFIG_META_KEYS.has(key)));
+
+// 管理画面からの設定の保存。versionを確かめてから、設定と履歴を1つのトランザクションで書き、新しいversionを返す。
+// buildは今のドキュメントを受け取り、書く値を返す。画面から受け取らない項目(debugModeEnabledなど)の引き継ぎに使う。
+export const updateConfigWithHistory = async (
+  name: ConfigName,
+  expectedVersion: number,
+  build: (current: FirebaseFirestore.DocumentData | undefined) => Record<string, unknown>,
+  updatedBy: string | null,
+  configHash?: string,
+): Promise<number> => {
+  const configRef = db.collection("config").doc(name);
+
+  return db.runTransaction(async (tx) => {
+    const current = (await tx.get(configRef)).data();
+    // versionが無いドキュメント(コンソールで作ったもの)は0とみなす
+    const currentVersion = typeof current?.version === "number" ? current.version : 0;
+    if (currentVersion !== expectedVersion) {
+      throw new ConfigVersionConflictError(currentVersion);
+    }
+
+    const value = withoutConfigMeta(build(current));
+    const version = currentVersion + 1;
+    tx.set(configRef, { ...value, version, updatedAt: FieldValue.serverTimestamp(), updatedBy });
+    // createなので、同じIDの履歴があればトランザクションごと失敗する。履歴が上書きされたり抜けたりしないようにするため
+    tx.create(db.collection("config_history").doc(`${name}__${version}`), {
+      name,
+      version,
+      before: current === undefined ? null : withoutConfigMeta(current),
+      after: value,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy,
+      ...(configHash === undefined ? {} : { configHash }),
+    });
+    return version;
   });
 };
 

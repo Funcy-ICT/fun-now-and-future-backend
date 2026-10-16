@@ -65,6 +65,7 @@ src/
 │   ├── filter_pipeline.ts # フィルタの段の設定、config/filter_pipeline
 │   ├── retention.ts       # BigQueryの保持期間の設定、config/retention
 │   ├── baseline_settings.ts # 基準値の設定と、コードに書いた既定値
+│   ├── config_meta.ts     # 管理画面から変える設定に共通の項目(version)、変更の履歴config_history
 │   ├── daily_summary.ts   # daily_summaries
 │   └── excluded_day.ts    # excluded_records
 └── lib/
