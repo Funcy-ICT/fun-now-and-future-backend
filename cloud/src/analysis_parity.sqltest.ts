@@ -3,7 +3,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { getBigQuery, getScanEventsTableId } from "./lib/bigquery";
 import { countDevicesByWindow, WindowResult } from "./services/analysis";
-import { jstWeekday, runPipeline } from "./services/scan_service";
+import { jstWeekday, runPipeline, toPipelineDevice, PipelineDevice } from "./services/scan_service";
 import { StageConfig } from "./schema/filter_pipeline";
 import { toParsedDevice } from "./services/scan_event";
 import { ScanEventDevice } from "./schema/scan_event";
@@ -88,7 +88,7 @@ const buildRows = (): Row[] => {
 // TSの集計と同じ手順で、期待する結果を作る。pending_scansのドキュメントIDと同じ考え方で重複をまとめる
 const expectedResults = (rows: Row[], stages: StageConfig[]): WindowResult[] => {
 	const seen = new Set<string>();
-	const groups = new Map<string, { windowStart: number; location: string; devices: ScanEventDevice[] }>();
+	const groups = new Map<string, { windowStart: number; location: string; devices: PipelineDevice[] }>();
 
 	for (const row of [...rows].sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))) {
 		const key = row.sendId !== null ? `${row.nodeId}/${row.sendId}` : row.message_id;
@@ -98,12 +98,12 @@ const expectedResults = (rows: Row[], stages: StageConfig[]): WindowResult[] => 
 		const windowStart = Math.floor(Date.parse(row.receivedAt) / WINDOW_MS) * WINDOW_MS;
 		const groupKey = `${windowStart}__${row.location}`;
 		const group = groups.get(groupKey) ?? { windowStart, location: row.location, devices: [] };
-		group.devices.push(...row.devices);
+		group.devices.push(...row.devices.map(device => toPipelineDevice(toParsedDevice(device), row.nodeId)));
 		groups.set(groupKey, group);
 	}
 
 	return [...groups.values()].map(group => {
-		const { result, trace } = runPipeline(group.devices.map(toParsedDevice), stages);
+		const { result, trace } = runPipeline(group.devices, stages);
 		return {
 			windowStart: new Date(group.windowStart).toISOString(),
 			location: group.location,

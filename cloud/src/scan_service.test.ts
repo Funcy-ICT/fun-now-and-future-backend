@@ -1,13 +1,14 @@
-import { runPipeline, STAGE_REGISTRY, aggregateWindow } from "./services/scan_service";
+import { runPipeline, STAGE_REGISTRY, aggregateWindow, toPipelineDevice, dedupeByMac, filterByRssi, groupByLocation } from "./services/scan_service";
 import { ParsedDevice } from "./schema/sensor_data";
 
-const device = (overrides: Partial<ParsedDevice> & { mac: string }): ParsedDevice => ({
+// 重複排除の前の、検出1件の端末
+const device = (overrides: Partial<ParsedDevice> & { mac: string }, nodeId = "node-1") => toPipelineDevice({
 	rssi: -60,
 	format: "parsed",
 	companyId: "004C",
 	isNearbyInfo: true,
 	...overrides,
-});
+}, nodeId);
 
 describe("STAGE_REGISTRY.companyFilter", () => {
 	test("allowedCompanyIdsに含まれないcompanyIdは除外", () => {
@@ -78,6 +79,49 @@ describe("runPipeline", () => {
 		]);
 
 		expect(dedupeFirst.result.length).toBe(companyFilterFirst.result.length);
+	});
+});
+
+describe("groupByLocation", () => {
+	test("locationごとにまとめ、検出ごとにnodeIdを残す", () => {
+		const parsed = (mac: string, rssi: number): ParsedDevice => ({ mac, rssi, format: "parsed", companyId: "004C", isNearbyInfo: true });
+		const byLocation = groupByLocation([
+			{ nodeId: "a", location: "cafeteria", devices: [parsed("H1", -60)] },
+			{ nodeId: "b", location: "cafeteria", devices: [parsed("H1", -70)] },
+			{ nodeId: "c", location: "bus_stop", devices: [] },
+		]);
+		expect(byLocation.get("cafeteria")?.map(d => d.detections)).toEqual([[{ nodeId: "a", rssi: -60 }], [{ nodeId: "b", rssi: -70 }]]);
+		expect(byLocation.get("bus_stop")).toEqual([]);
+	});
+});
+
+describe("dedupeByMac", () => {
+	test("同じmacの検出をすべて残し、代表はrssiが最も強い検出にする", () => {
+		const deduped = dedupeByMac([
+			device({ mac: "H1", rssi: -70, companyId: "00E0" }, "a"),
+			device({ mac: "H1", rssi: -60, companyId: "004C" }, "b"),
+			device({ mac: "H1", rssi: -80 }, "a"),
+		]);
+		expect(deduped).toHaveLength(1);
+		expect(deduped[0].count).toBe(3);
+		expect(deduped[0].device).toMatchObject({ rssi: -60, companyId: "004C" });
+		expect(deduped[0].device.detections).toEqual([
+			{ nodeId: "a", rssi: -70 }, { nodeId: "b", rssi: -60 }, { nodeId: "a", rssi: -80 },
+		]);
+	});
+
+	test("入力の端末は書き換えない", () => {
+		const first = device({ mac: "H1", rssi: -70 }, "a");
+		dedupeByMac([first, device({ mac: "H1", rssi: -60 }, "b")]);
+		expect(first.detections).toEqual([{ nodeId: "a", rssi: -70 }]);
+	});
+});
+
+describe("filterByRssi", () => {
+	test("どれか1件の検出が閾値以上なら残す", () => {
+		const [merged] = dedupeByMac([device({ mac: "H1", rssi: -90 }, "a"), device({ mac: "H1", rssi: -65 }, "b")]);
+		expect(filterByRssi([merged.device], -70)).toHaveLength(1);
+		expect(filterByRssi([merged.device], -60)).toHaveLength(0);
 	});
 });
 
