@@ -56,7 +56,7 @@ export type CongestionHistoryEntry = z.infer<typeof CongestionHistoryEntrySchema
 // GET /getCongestionHistory のレスポンス(200)
 export const CongestionHistoryResponseSchema = z.object({
   status: z.literal("success"),
-  count: z.number().int().nonnegative(),
+  count: z.number().int().nonnegative().openapi({ description: "dataの件数", example: 1 }),
   data: z.array(CongestionHistoryEntrySchema),
 }).openapi("CongestionHistoryResponse");
 

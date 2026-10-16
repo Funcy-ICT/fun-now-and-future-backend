@@ -10,6 +10,6 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 
 export const HealthResponseSchema = z.object({
   status: z.literal("ok"),
-  message: z.string(),
+  message: z.string().openapi({ example: "Backend is running" }),
 }).openapi("HealthResponse");
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
