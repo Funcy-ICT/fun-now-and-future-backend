@@ -18,10 +18,8 @@ import {
   deleteStalePendingScans,
   saveScanDiagnostics,
   getFilterPipelineConfig,
-  getNodeLastSeen,
-  saveNodeLastSeen,
 } from "../repositories/firestore";
-import { recordLastSeen } from "../services/node_monitor";
+import { monitorNodes } from "../services/node_monitor";
 import { CongestionRecordInput } from "../schema/congestion_record";
 import { ReceiveSensorDataResponseSchema } from "../schema/api/sensor";
 import { ErrorResponseSchema } from "../schema/api/common";
@@ -176,14 +174,17 @@ aggregateRoute.post("/aggregate", async (c) => {
 
   await saveCongestionRecords(records, windowStart, configHash);
   await saving_node_health_status(healthStats);
-  // 窓に受信が無ければ、最終受信時刻は変わらないので、読み書きしない
-  if (healthStats.length > 0) {
-    await saveNodeLastSeen(recordLastSeen(await getNodeLastSeen(), healthStats, windowStart));
-  }
   await deletePendingScansByIds(ids);
 
   // 窓に間に合わず遅れて届いたデータは、読まれないまま残る。溜まり続けないよう、古いものを消す
   await deleteStalePendingScans(Timestamp.fromMillis(now.getTime() - STALE_PENDING_SCAN_MS));
+
+  // ノードの停止の判定は台数に影響しないので、失敗しても集計は止めずにログに残す
+  try {
+    await monitorNodes(healthStats, windowStart);
+  } catch (error) {
+    console.error("Failed to monitor nodes:", error instanceof Error ? error.message : error);
+  }
 
   // 履歴は分析にしか使わない。失敗してもサイネージには影響しないので、集計は止めずにログに残す
   try {
