@@ -155,7 +155,7 @@ export const filterByRssi = (
     device.detections.some(detection => detection.rssi >= (thresholds.get(detection.nodeId) ?? minRssi)));
 }
 
-type StageFn = (devices: PipelineDevice[], config: StageConfig) => PipelineDevice[];
+type StageFn = (devices: PipelineDevice[], config: StageConfig, location: string) => PipelineDevice[];
 
 export const STAGE_REGISTRY: Record<string, StageFn> = {
   dedupe: (devices) => dedupeByMac(devices).map(d => d.device),
@@ -168,9 +168,11 @@ export const STAGE_REGISTRY: Record<string, StageFn> = {
     );
   },
 
-  rssiFilter: (devices, config) => {
+  rssiFilter: (devices, config, location) => {
     if (config.name !== "rssiFilter") return devices;
-    return filterByRssi(devices, config.rssiThreshold);
+    // 閾値はlocationとnodeIdの組で引く。ノードを別の場所に移したら、前の場所の閾値は使わない
+    const nodeThresholds = new Map(Object.entries(config.nodeThresholds ?? {})).get(location);
+    return filterByRssi(devices, config.rssiThreshold, nodeThresholds);
   },
 };
 
@@ -186,7 +188,8 @@ export type PipelineResult = {
   dedupeOutput?: DedupedDevice[]; // dedupe段が実行された場合のみ値が入る
 };
 
-export const runPipeline = (devices: PipelineDevice[], stages: StageConfig[]): PipelineResult => {
+// locationは、rssiFilterがそのlocationのノードごとの閾値を引くのに使う
+export const runPipeline = (devices: PipelineDevice[], stages: StageConfig[], location: string): PipelineResult => {
   const trace: StageTraceEntry[] = [];
   let current = devices;
   let dedupeOutput: DedupedDevice[] | undefined;
@@ -199,7 +202,7 @@ export const runPipeline = (devices: PipelineDevice[], stages: StageConfig[]): P
       dedupeOutput = deduped;
       current = deduped.map(d => d.device);
     } else {
-      current = STAGE_REGISTRY[stage.name](current, stage);
+      current = STAGE_REGISTRY[stage.name](current, stage, location);
     }
 
     trace.push({ stageName: stage.name, countBefore: before, countAfter: current.length });

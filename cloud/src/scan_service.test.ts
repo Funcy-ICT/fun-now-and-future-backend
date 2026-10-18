@@ -15,7 +15,7 @@ describe("STAGE_REGISTRY.companyFilter", () => {
 		const devices = [device({ mac: "AA:BB:CC:DD:EE:01", companyId: "00E0" })];
 		const result = STAGE_REGISTRY.companyFilter(devices, {
 			name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true,
-		});
+		}, "cafeteria");
 		expect(result).toHaveLength(0);
 	});
 
@@ -23,7 +23,7 @@ describe("STAGE_REGISTRY.companyFilter", () => {
 		const devices = [device({ mac: "AA:BB:CC:DD:EE:01", isNearbyInfo: false })];
 		const result = STAGE_REGISTRY.companyFilter(devices, {
 			name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: false,
-		});
+		}, "cafeteria");
 		expect(result).toHaveLength(1);
 	});
 });
@@ -40,7 +40,7 @@ describe("runPipeline", () => {
 			{ name: "dedupe" },
 			{ name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
 			{ name: "rssiFilter", rssiThreshold: -100 },
-		]);
+		], "cafeteria");
 
 		expect(result).toHaveLength(1); // 重複排除で1台、company対象外で1台除外 → 1台
 		expect(trace).toEqual([
@@ -56,7 +56,7 @@ describe("runPipeline", () => {
 		const devices = [device({ mac: "AA:BB:CC:DD:EE:01" })];
 		const { dedupeOutput } = runPipeline(devices, [
 			{ name: "rssiFilter", rssiThreshold: -100 },
-		]);
+		], "cafeteria");
 		expect(dedupeOutput).toBeUndefined();
 	});
 
@@ -70,13 +70,13 @@ describe("runPipeline", () => {
 			{ name: "dedupe" },
 			{ name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
 			{ name: "rssiFilter", rssiThreshold: -80 },
-		]);
+		], "cafeteria");
 
 		const companyFilterFirst = runPipeline(devices, [
 			{ name: "companyFilter", allowedCompanyIds: ["004C"], requireNearbyInfo: true },
 			{ name: "dedupe" },
 			{ name: "rssiFilter", rssiThreshold: -80 },
-		]);
+		], "cafeteria");
 
 		expect(dedupeFirst.result.length).toBe(companyFilterFirst.result.length);
 	});

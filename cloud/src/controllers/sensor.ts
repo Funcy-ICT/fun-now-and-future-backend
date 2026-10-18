@@ -151,7 +151,7 @@ aggregateRoute.post("/aggregate", async (c) => {
   // ESP32は検出0件でもdevices: []でPOSTしてくる前提。空配列でもrunPipelineは自然に
   // uniqueDeviceCount: 0の結果を返すため、byLocationに出てきたlocationだけを処理すればよい
   for (const [location, devices] of byLocation) {
-    const { result, trace, dedupeOutput } = runPipeline(devices, config.stages);
+    const { result, trace, dedupeOutput } = runPipeline(devices, config.stages, location);
     records.push({ location, weekday, uniqueDeviceCount: result.length });
     runLocations.push({ location, weekday, uniqueDeviceCount: result.length, stageTrace: trace });
 

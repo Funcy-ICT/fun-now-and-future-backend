@@ -12,7 +12,7 @@ export const StageConfigSchema = z.discriminatedUnion("name", [
     name: z.literal("rssiFilter"),
     rssiThreshold: z.number(), // nodeThresholdsに無いノードに使う
     // location → nodeId → 閾値。ノードを別の場所に移したら、前の場所の閾値を使わないよう、locationとの組にする。
-    // 既定値({})は付けない。付けると、同じ設定でもconfigHashが変わるため。判定にはまだ使っていない
+    // 既定値({})は付けない。付けると、同じ設定でもconfigHashが変わるため。分析用のSQLは、まだこの閾値で判定していない
     nodeThresholds: z.record(z.string().min(1), z.record(z.string().min(1), z.number())).optional(),
   }),
 ]);
