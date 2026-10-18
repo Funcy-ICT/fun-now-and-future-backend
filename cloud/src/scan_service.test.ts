@@ -1,5 +1,6 @@
 import { runPipeline, STAGE_REGISTRY, aggregateWindow, toPipelineDevice, dedupeByMac, filterByRssi, groupByLocation } from "./services/scan_service";
 import { ParsedDevice } from "./schema/sensor_data";
+import { StageConfig } from "./schema/filter_pipeline";
 
 // 重複排除の前の、検出1件の端末
 const device = (overrides: Partial<ParsedDevice> & { mac: string }, nodeId = "node-1") => toPipelineDevice({
@@ -80,6 +81,30 @@ describe("runPipeline", () => {
 
 		expect(dedupeFirst.result.length).toBe(companyFilterFirst.result.length);
 	});
+
+	test("rssiFilterは、そのlocationのnodeThresholdsだけを使う", () => {
+		const devices = [device({ mac: "H1", rssi: -70 }, "a")];
+		const stages: StageConfig[] = [
+			{ name: "dedupe" },
+			{ name: "rssiFilter", rssiThreshold: -60, nodeThresholds: { cafeteria: { a: -75 } } },
+		];
+		expect(runPipeline(devices, stages, "cafeteria").result).toHaveLength(1);
+		// ノードaを別の場所に移したら、前の場所の閾値は使わず、rssiThresholdで判定する
+		expect(runPipeline(devices, stages, "library").result).toHaveLength(0);
+	});
+
+	test("nodeThresholdsが無い設定では、最も強い検出で判定したときと台数が変わらない", () => {
+		const devices = [
+			device({ mac: "H1", rssi: -90 }, "a"),
+			device({ mac: "H1", rssi: -65 }, "b"),
+			device({ mac: "H2", rssi: -75 }, "a"),
+		];
+		const { result } = runPipeline(devices, [{ name: "dedupe" }, { name: "rssiFilter", rssiThreshold: -70 }], "cafeteria");
+		// 代表(最も強い検出)のrssiで判定した台数。H1は-65で通り、H2は-75で落ちる
+		const byStrongest = dedupeByMac(devices).filter(d => d.device.rssi >= -70);
+		expect(byStrongest).toHaveLength(1);
+		expect(result).toHaveLength(byStrongest.length);
+	});
 });
 
 describe("groupByLocation", () => {
@@ -122,6 +147,24 @@ describe("filterByRssi", () => {
 		const [merged] = dedupeByMac([device({ mac: "H1", rssi: -90 }, "a"), device({ mac: "H1", rssi: -65 }, "b")]);
 		expect(filterByRssi([merged.device], -70)).toHaveLength(1);
 		expect(filterByRssi([merged.device], -60)).toHaveLength(0);
+	});
+
+	test("検出ごとに、そのノードの閾値で判定する", () => {
+		// ノードaでは-70で閾値-65に届かないが、ノードbでは-72で閾値-75を超えるので残す
+		const [merged] = dedupeByMac([device({ mac: "H1", rssi: -70 }, "a"), device({ mac: "H1", rssi: -72 }, "b")]);
+		expect(filterByRssi([merged.device], -100, { a: -65, b: -75 })).toHaveLength(1);
+		expect(filterByRssi([merged.device], -100, { a: -65, b: -70 })).toHaveLength(0);
+	});
+
+	test("nodeThresholdsに無いノードは、minRssiで判定する", () => {
+		const detected = device({ mac: "H1", rssi: -80 }, "c");
+		expect(filterByRssi([detected], -85, { a: -65 })).toHaveLength(1);
+		expect(filterByRssi([detected], -75, { a: -65 })).toHaveLength(0);
+	});
+
+	test("constructorのようなnodeIdでも、minRssiで判定する", () => {
+		const detected = device({ mac: "H1", rssi: -80 }, "constructor");
+		expect(filterByRssi([detected], -85, {})).toHaveLength(1);
 	});
 });
 
