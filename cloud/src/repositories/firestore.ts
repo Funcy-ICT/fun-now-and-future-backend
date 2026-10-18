@@ -7,6 +7,7 @@ import { RetentionConfig, RetentionConfigSchema, RetentionInput } from "../schem
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
 import { ConfigName, ConfigVersionConflictError, StoredConfig } from "../schema/config_meta";
 import { NodesConfig, NodesConfigSchema } from "../schema/nodes_config";
+import { NodeLastSeen, NodeLastSeenSchema } from "../schema/node_last_seen";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 import { ExcludedDayInput } from "../schema/excluded_day";
 import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
@@ -359,6 +360,31 @@ export const getNodesConfig = async (): Promise<StoredConfig<NodesConfig>> => {
     return { value: { nodes: {} }, ...meta };
   }
   return { value: parsed.data, ...meta };
+};
+
+const nodeLastSeenRef = () => db.collection("status").doc("node_last_seen");
+
+// 無いか検証に通らなければ空として扱う。次に送ってきたノードから、また覚え直す
+export const getNodeLastSeen = async (): Promise<NodeLastSeen> => {
+  const doc = await nodeLastSeenRef().get();
+  if (!doc.exists) return { nodes: {} };
+
+  const parsed = NodeLastSeenSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error("Invalid data in status/node_last_seen:", parsed.error.issues);
+    return { nodes: {} };
+  }
+  return parsed.data;
+};
+
+// 書くのは/aggregateだけなので、ドキュメント全体を置き換える
+export const saveNodeLastSeen = async (lastSeen: NodeLastSeen): Promise<void> => {
+  const result = NodeLastSeenSchema.safeParse(lastSeen);
+  if (!result.success) {
+    console.error("Validation failed:", result.error.issues);
+    throw new Error("Invalid data for saving node last seen");
+  }
+  await nodeLastSeenRef().set(result.data);
 };
 
 // 管理画面からの設定の保存。versionを確かめてから、設定と履歴を1つのトランザクションで書き、新しいversionを返す。

@@ -41,6 +41,7 @@ const cleanup = async () => {
 		db.collection("congestion_records").doc(`agg-loc-1__${windowStartMs}`),
 		db.collection("congestion_records").doc(`agg-loc-2__${windowStartMs}`),
 		...["a", "b", "c"].map(n => db.collection("node_health_stats").doc(`agg-node-${n}_2019-12-31T10:00:00.000Z`)),
+		db.collection("status").doc("node_last_seen"),
 	];
 	await Promise.all(refs.map(ref => ref.delete()));
 };
@@ -128,11 +129,22 @@ describe("POST /aggregate", () => {
 		expect(run.nodes).toContainEqual({ nodeId: "agg-node-a", location: "agg-loc-1", postCount: 1, totalMacCount: 2 });
 	});
 
+	test("窓に送ってきたノードの最終受信時刻を、status/node_last_seenに記録する", async () => {
+		const lastSeen = (await db.collection("status").doc("node_last_seen").get()).data();
+		const windowStart = new Date(windowStartMs);
+		for (const [nodeId, location] of [["agg-node-a", "agg-loc-1"], ["agg-node-b", "agg-loc-1"], ["agg-node-c", "agg-loc-2"]]) {
+			expect(lastSeen?.nodes[nodeId].location).toBe(location);
+			expect(lastSeen?.nodes[nodeId].lastSeenAt.toDate()).toEqual(windowStart);
+			expect(lastSeen?.nodes[nodeId].state).toBe("up");
+		}
+	});
+
 	test("窓の中にデータが無ければ、何も記録しない", async () => {
 		await cleanup();
 		(publishAggregateRun as jest.Mock).mockClear();
 		const res = await app.request("/aggregate", { method: "POST" });
 		expect(res.status).toBe(200);
 		expect(await res.json()).toMatchObject({ scanCount: 0, locationCount: 0 });
+		expect((await db.collection("status").doc("node_last_seen").get()).exists).toBe(false);
 	});
 });
