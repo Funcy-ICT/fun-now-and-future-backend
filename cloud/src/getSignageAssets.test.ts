@@ -82,6 +82,34 @@ describe("GET /signage/assets", () => {
       await db.collection("prAssets").doc(id).delete();
     }
   });
+  test("contentTypeがPDFのアセットは一覧に出ない", async () => {
+    const db = getFirestore();
+    const id = "signage-asset-test-pdf";
+
+    await db.collection("prAssets").doc(id).set({
+      id,
+      status: "approved",
+      tag: "お知らせ",
+      title: "PDFの告知",
+      description: "",
+      contentType: "application/pdf",
+      size: 100,
+      publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+      publishUntil: null,
+      createdAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+    });
+
+    try {
+      const res = await app.request("/signage/assets", {
+        headers: { "x-api-key": TEST_API_KEY },
+      });
+      const json = await res.json();
+      expect(SignageAssetsResponseSchema.safeParse(json).success).toBe(true);
+      expect(json.assets.find((a: { id: string }) => a.id === id)).toBeUndefined();
+    } finally {
+      await db.collection("prAssets").doc(id).delete();
+    }
+  });
   test("APIキーがない場合401を返す", async () => {
     const res = await app.request("/signage/assets");
     expect(res.status).toBe(401);

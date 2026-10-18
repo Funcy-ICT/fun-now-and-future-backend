@@ -68,7 +68,7 @@ export const PrAssetMediaDtoSchema = z.object({
     example: "https://storage.googleapis.com/<bucket>/objects/550e8400-e29b-41d4-a716-446655440000",
   }),
   contentType: z.enum(PR_ASSET_CONTENT_TYPES).openapi({
-    description: "表示の仕方を分けるのに使う",
+    description: "ファイルの種類。今は画像だけ",
     example: "image/jpeg",
   }),
 }).openapi("PrAssetMedia");
@@ -76,7 +76,7 @@ export const PrAssetMediaDtoSchema = z.object({
 // 掲載中の広報アセット
 export const PrAssetDtoSchema = z.object({
   id: z.string().openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
-  tag: z.string().openapi({ example: "イベント" }),
+  tag: z.string().openapi({ description: "掲示物の分類。1件に1つ", example: "イベント" }),
   title: z.string().openapi({ example: "秋のコンテスト告知" }),
   description: z.string().openapi({ example: "10月31日まで作品を募集しています" }),
   media: PrAssetMediaDtoSchema,
