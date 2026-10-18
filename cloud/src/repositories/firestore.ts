@@ -5,7 +5,8 @@ import { ScanEvent } from "../schema/scan_event";
 import { FilterPipelineConfig, FilterPipelineConfigSchema } from "../schema/filter_pipeline";
 import { RetentionConfig, RetentionConfigSchema, RetentionInput } from "../schema/retention";
 import { BaselineConfig, BaselineConfigSchema } from "../schema/baseline_settings";
-import { ConfigName, ConfigVersionConflictError } from "../schema/config_meta";
+import { ConfigName, ConfigVersionConflictError, StoredConfig } from "../schema/config_meta";
+import { NodesConfig, NodesConfigSchema } from "../schema/nodes_config";
 import { DailySummary, DailySummaryInput, DailySummarySchema } from "../schema/daily_summary";
 import { ExcludedDayInput } from "../schema/excluded_day";
 import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
@@ -294,17 +295,22 @@ const DEFAULT_FILTER_PIPELINE_CONFIG: FilterPipelineConfig = {
   debugModeEnabled: false,
 };
 
-export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => {
-  const doc = await db.collection("config").doc("filter_pipeline").get();
-  if (!doc.exists) return DEFAULT_FILTER_PIPELINE_CONFIG;
+// sourceは、保存された値で動いているか(stored)、無いか検証に通らないので既定の構成で動いているか(default)。
+// 検証に通らない値が保存されていても、集計は止まらずに既定の構成で動くので、管理画面で気づけるようにする
+export const readFilterPipelineConfig = async (): Promise<StoredConfig<FilterPipelineConfig> & { source: "stored" | "default" }> => {
+  const data = (await db.collection("config").doc("filter_pipeline").get()).data();
+  const meta = readConfigMeta(data);
+  if (data === undefined) return { value: DEFAULT_FILTER_PIPELINE_CONFIG, source: "default", ...meta };
 
-  const parsed = FilterPipelineConfigSchema.safeParse(doc.data());
+  const parsed = FilterPipelineConfigSchema.safeParse(data);
   if (!parsed.success) {
     console.error("Invalid data in config/filter_pipeline:", parsed.error.issues);
-    return DEFAULT_FILTER_PIPELINE_CONFIG;
+    return { value: DEFAULT_FILTER_PIPELINE_CONFIG, source: "default", ...meta };
   }
-  return parsed.data;
+  return { value: parsed.data, source: "stored", ...meta };
 };
+
+export const getFilterPipelineConfig = async (): Promise<FilterPipelineConfig> => (await readFilterPipelineConfig()).value;
 
 export const getRetentionConfig = async (): Promise<RetentionConfig | null> => {
   const doc = await db.collection("config").doc("retention").get();
@@ -331,6 +337,30 @@ const CONFIG_META_KEYS = new Set(["version", "updatedAt", "updatedBy"]);
 const withoutConfigMeta = (data: FirebaseFirestore.DocumentData): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !CONFIG_META_KEYS.has(key)));
 
+// versionが無いドキュメント(コンソールで作ったもの)は0とみなす
+const configVersionOf = (data: FirebaseFirestore.DocumentData | undefined): number =>
+  typeof data?.version === "number" ? data.version : 0;
+
+const readConfigMeta = (data: FirebaseFirestore.DocumentData | undefined): Omit<StoredConfig<unknown>, "value"> => ({
+  version: configVersionOf(data),
+  updatedAt: data?.updatedAt instanceof Timestamp ? data.updatedAt : null,
+  updatedBy: typeof data?.updatedBy === "string" ? data.updatedBy : null,
+});
+
+// ノードの設定。無いか検証に通らなければ、空として扱う(撤去済みのノードが無いだけで、集計には影響しない)
+export const getNodesConfig = async (): Promise<StoredConfig<NodesConfig>> => {
+  const data = (await db.collection("config").doc("nodes").get()).data();
+  const meta = readConfigMeta(data);
+  if (data === undefined) return { value: { nodes: {} }, ...meta };
+
+  const parsed = NodesConfigSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error("Invalid data in config/nodes:", parsed.error.issues);
+    return { value: { nodes: {} }, ...meta };
+  }
+  return { value: parsed.data, ...meta };
+};
+
 // 管理画面からの設定の保存。versionを確かめてから、設定と履歴を1つのトランザクションで書き、新しいversionを返す。
 // buildは今のドキュメントを受け取り、書く値を返す。画面から受け取らない項目(debugModeEnabledなど)の引き継ぎに使う。
 export const updateConfigWithHistory = async (
@@ -344,8 +374,7 @@ export const updateConfigWithHistory = async (
 
   return db.runTransaction(async (tx) => {
     const current = (await tx.get(configRef)).data();
-    // versionが無いドキュメント(コンソールで作ったもの)は0とみなす
-    const currentVersion = typeof current?.version === "number" ? current.version : 0;
+    const currentVersion = configVersionOf(current);
     if (currentVersion !== expectedVersion) {
       throw new ConfigVersionConflictError(currentVersion);
     }
