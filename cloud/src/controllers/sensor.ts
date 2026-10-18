@@ -167,6 +167,7 @@ aggregateRoute.post("/aggregate", async (c) => {
           companyId: d.device.companyId,
           isNearbyInfo: d.device.isNearbyInfo,
           count: d.count,
+          detections: d.device.detections,
         })),
       });
     }
