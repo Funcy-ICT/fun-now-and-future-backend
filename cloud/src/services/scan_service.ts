@@ -142,12 +142,17 @@ export const aggregateWindow = (now: Date): { start: Timestamp; end: Timestamp }
   return { start, end: Timestamp.fromMillis(start.toMillis() + WINDOW_MS) };
 };
 
-// どれか1件の検出が閾値以上なら残す。閾値が1つなら、最も強い検出(rssi)で判定するのと同じ
+// どれか1件の検出が、検出したノードの閾値以上なら残す。nodeThresholds(nodeId → 閾値)に無いノードは、minRssiで判定する。
+// ノードごとの閾値が無ければ、最も強い検出(rssi)で判定するのと同じ
 export const filterByRssi = (
   devices: PipelineDevice[],
-  minRssi: number
+  minRssi: number,
+  nodeThresholds: Record<string, number> = {},
 ): PipelineDevice[] => {
-  return devices.filter(device => device.detections.some(detection => detection.rssi >= minRssi));
+  // constructorのようなnodeIdで、Objectから継いだ値を閾値として読まないよう、Mapにする
+  const thresholds = new Map(Object.entries(nodeThresholds));
+  return devices.filter(device =>
+    device.detections.some(detection => detection.rssi >= (thresholds.get(detection.nodeId) ?? minRssi)));
 }
 
 type StageFn = (devices: PipelineDevice[], config: StageConfig) => PipelineDevice[];
