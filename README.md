@@ -31,6 +31,8 @@ Hono（TypeScript）を Cloud Run で動かし、Firestore、Pub/Sub、BigQuery 
 
 ## ローカルで動かす
 
+macOS、Linux（bash、zsh）:
+
 ```bash
 cd cloud
 npm install
@@ -38,6 +40,19 @@ npm run build
 MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY=local-dev-key npm start
 ```
 
+Windows（PowerShell）:
+
+```powershell
+cd cloud
+npm install
+npm run build
+$env:MAC_HASH_KEY = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+$env:SCAN_EVENTS_TOPIC = "scan-events"
+$env:ESP32_API_KEY = "local-dev-key"
+npm start
+```
+
+* PowerShell の`$env:`で入れた値は、そのウィンドウを閉じるまで残る。Git Bash や WSL では、上の bash のコマンドがそのまま使える
 * `http://localhost:8080` で待ち受ける。値はどれもローカル用のダミー。本物の鍵やキーは使わない
 * Swagger UI で`/signage/assets`などを試すときは、「Authorize」に`local-dev-key`を入れる
 * Firestore を読むルート（`/getCongestion`など）を試すには、Firestore のエミュレータが要る。手順とテストの実行は

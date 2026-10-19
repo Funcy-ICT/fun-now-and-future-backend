@@ -23,7 +23,7 @@
     <rect x="30" y="300" width="210" height="80" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
     <text x="135" y="330" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Cloud Storage</text>
     <text x="135" y="352" font-size="12" text-anchor="middle" fill="#495057">公開バケット</text>
-    <text x="135" y="369" font-size="12" text-anchor="middle" fill="#495057">広報の画像・PDF</text>
+    <text x="135" y="369" font-size="12" text-anchor="middle" fill="#495057">広報の画像</text>
   </g>
   <g id="admin">
     <rect x="30" y="430" width="210" height="90" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
