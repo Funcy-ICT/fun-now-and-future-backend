@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
 
-// フィルタ通過状況の診断データ。config/diagnosticsがtrueのときだけ書く
+// フィルタ通過状況の診断データ。config/filter_pipeline.debugModeEnabledがtrueのときだけ書く
 export const ScanDiagnosticsSchema = z.object({
   location: z.string().min(1),
   weekday: z.number().int().min(0).max(6),

@@ -13,11 +13,15 @@ fun-now-and-future-backendの設計判断を、1件1ファイルで残す。ま�
 | [0004](0004-count-target-filter-and-accessory-exclusion.md) | 全デバイスを保存し、数える対象は集計時に絞る。アクセサリーは数えない | 採用 | 2026-09-05 | #11 |
 | [0005](0005-admin-ui-library.md) | 管理画面のUIにHeroUI + Tailwind CSSを採用する | 採用 | 2026-09-07 | #14 |
 | [0006](0006-signage-asset-delivery.md) | 広報アセットは公開バケットから直接配り、APIは一覧だけを返す | 一部を0011で置き換え | 2026-09-13 | #20 |
-| [0007](0007-filter-pipeline.md) | フィルタの段構成を一か所にまとめ、設定で変えられるようにする | 採用 | 2026-09-14 | #22 |
+| [0007](0007-filter-pipeline.md) | フィルタの段構成を一か所にまとめ、設定で変えられるようにする | 一部を0012、0013で置き換え | 2026-09-14 | #22 |
 | [0008](0008-congestion-level-and-baseline.md) | 混雑度は (location, 曜日) ごとの基準値に対する比で9段階にする | 一部を0009で置き換え | 2026-09-14 | #23 |
 | [0009](0009-baseline-valid-days-and-lookback.md) | 基準値は、有効な日をN日集めるまで遡って計算する | 採用（実装は未マージ） | 2026-09-14 | #24 |
 | [0010](0010-raw-data-to-bigquery-via-pubsub.md) | 生データはPub/Sub経由でBigQueryに貯め、表示用の値だけをFirestoreに置く | 採用 | 2026-09-20 | #36, #37 |
 | [0011](0011-signage-asset-list-shape.md) | 広報アセットの一覧に、タグと説明を足し、ファイルのURLと種類をmediaにまとめる | 一部を0018で置き換え | 2026-10-15 | #64 |
+| [0012](0012-filter-verification-in-bigquery.md) | フィルタの検証はBigQueryで行い、scan_diagnosticsは保持期間を超えて残すための控えにする | 採用 | 2026-10-11 | #22, #40 |
+| [0013](0013-per-node-rssi-threshold.md) | RSSIの閾値をノードごとに持ち、どれか1つのノードで閾値を通った端末を数える | 採用（分析用のSQLは未実装） | 2026-10-11 | #72, #82 |
+| [0014](0014-admin-config-version-and-history.md) | 管理画面から変える設定に、versionと変更の履歴を持たせる | 採用（一部実装） | 2026-10-11 | #69, #70, #71 |
+| [0015](0015-node-down-alert.md) | ノードの停止は/aggregateで判定し、停止と復旧をメールで知らせる | 採用（メールのアラートは未実装） | 2026-10-11 | — |
 | [0018](0018-signage-asset-images-only.md) | 広報アセットは画像だけにし、タグは1件に1つにする | 採用 | 2026-10-19 | #56 |
 
 ## 書き方

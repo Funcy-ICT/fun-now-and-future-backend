@@ -41,7 +41,7 @@
 | ドキュメント | 用途 | 必須/任意 |
 | --- | --- | --- |
 | `config/locations` | location一覧（`{ ids: string[] }`）。現在はどの処理も読んでいない。`/aggregate`はデータが届いたlocationを、基準値計算バッチは直近24時間の`congestion_records`を使う | 不要 |
-| `config/diagnostics` | `{ enabled: boolean }`。フィルタ通過状況の診断データ（`scan_diagnostics`）への書き込みON/OFF | 任意。無ければOFF扱い（安全側） |
+| `config/filter_pipeline` | フィルタの段の設定（`stages`）と、診断データ（`scan_diagnostics`）への書き込みのON/OFF（`debugModeEnabled`） | 任意。無いか検証に通らなければ、既定の構成（Appleの本体端末に絞り、RSSIの閾値-100、診断OFF）で動く |
 | `config/retention` | BigQueryの保持期間（`scanEventsDays`。`null`は無期限）。最後に適用できた値を残すもので、実際の保持期間はBigQuery側のパーティションの有効期限で決まる | 任意。無ければ未設定（無期限） |
 | `config/academic_calendar` | 学期期間・休業日の一覧。基準値計算バッチの統計的な有効日判定より優先して適用される | 任意。**未実装**（統計判定のみで動作する） |
 | `config/baseline` | 基準値計算バッチの設定。`defaults`（全体）と`locations.{location}`（locationごとの上書き）を持つ | 任意。無ければコードに書いた既定値を使う |
