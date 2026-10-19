@@ -55,7 +55,7 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
 * 同じlocationの同じ端末を複数のノードが検出したときは、どれか1つの検出が、そのノードのrssiの閾値以上なら数える。
   閾値は`config/filter_pipeline`の`rssiFilter.nodeThresholds`（location → nodeId）から引き、無いノードには
   `rssiThreshold`を使う
-* `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
+* `config/filter_pipeline`の`debugModeEnabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
 * `scan_diagnostics`の端末には、検出したノードとrssiの組（`detections`）も残す。ノードごとの閾値を変えたときの
   台数を確かめるため。この項目が無い前のドキュメントもある
