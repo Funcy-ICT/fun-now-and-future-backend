@@ -103,6 +103,14 @@ npm run build
 ```bash
 MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY=local-dev-key npm start
 ```
+Windows（PowerShell）では、環境変数を`$env:`で入れてから起動する。入れた値は、そのウィンドウを閉じるまで残る。
+`openssl`の代わりに、`node`で鍵を作る。Git BashやWSLでは、上のbashのコマンドがそのまま使える。
+```powershell
+$env:MAC_HASH_KEY = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+$env:SCAN_EVENTS_TOPIC = "scan-events"
+$env:ESP32_API_KEY = "local-dev-key"
+npm start
+```
 `http://localhost:8080` で待ち受けます（`PORT`環境変数で変更可）。`/ui`でSwagger UIを開ける。
 * 鍵は、起動のたびにランダムなダミーを作る。本物の鍵を、コマンドの履歴やファイルに残さないため
 * `ESP32_API_KEY`は、ローカル用のダミー（`local-dev-key`）。Swagger UIで`/signage/assets`などを試すときは、
@@ -115,6 +123,13 @@ MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY
   # 別のターミナルで
   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-fnaf PORT=3000 \
     MAC_HASH_KEY=$(openssl rand -hex 32) SCAN_EVENTS_TOPIC=scan-events ESP32_API_KEY=local-dev-key npm start
+  ```
+  Windows（PowerShell）では、上の3つの`$env:`に加えて、次を入れてから`npm start`する
+  ```powershell
+  # 別のウィンドウで
+  $env:FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080"
+  $env:GCLOUD_PROJECT = "demo-fnaf"
+  $env:PORT = "3000"
   ```
   このときのSwagger UIは`http://localhost:3000/ui`
 * `/receiveSensorData`は、ローカルでは試せない。Pub/Subにpublishするが、`firebase.json`にPub/Subのエミュレータの
@@ -146,6 +161,13 @@ docker build -t fun-now-and-future-backend .
 docker run -p 8080:8080 -e MAC_HASH_KEY=$(openssl rand -hex 32) -e SCAN_EVENTS_TOPIC=scan-events \
   -e ESP32_API_KEY=local-dev-key fun-now-and-future-backend
 curl http://localhost:8080/health
+```
+Windows（PowerShell）では、`docker run`と`curl`を次のようにする。PowerShellの`curl`は別のコマンドの別名なので、`curl.exe`と書く。
+```powershell
+$key = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+docker run -p 8080:8080 -e "MAC_HASH_KEY=$key" -e SCAN_EVENTS_TOPIC=scan-events `
+  -e ESP32_API_KEY=local-dev-key fun-now-and-future-backend
+curl.exe http://localhost:8080/health
 ```
 
 ## Cloud Runへのデプロイ
