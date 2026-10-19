@@ -58,7 +58,7 @@
 * `version`が無いドキュメント（コンソールで作ったもの）は、0とみなす
 * Firestoreコンソールで直接変えた分は、`version`も履歴も変わらない
 * フィルタの設定は、管理画面から保存するとき、`dedupe`が先頭にあること、同じ段が1回だけであること、rssiが-127から0の整数、companyIdが大文字の16進4桁であることを確かめる。`debugModeEnabled`は画面から受け取らず、今の値を引き継ぐ
-* ノードごとのrssiの閾値（`rssiFilter.nodeThresholds`、location → nodeId → 閾値）は、項目だけがあり、判定にはまだ使っていない。管理画面からは保存できない
+* ノードごとのrssiの閾値（`rssiFilter.nodeThresholds`、location → nodeId → 閾値）は、`/aggregate`の判定に使う。分析用のSQLはまだ同じ判定をしていないので、管理画面からは保存できない（Firestoreコンソールで入れた値は、`/aggregate`にだけ効く）
 * 今あるのは保存の処理だけ。管理画面から呼ぶエンドポイントは、認証（Cloudflare Access）が入ってから作る
 
 ## 基準値の計算バッチの設定（`config/baseline`）

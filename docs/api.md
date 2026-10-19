@@ -52,8 +52,13 @@ Cloud Schedulerから`1-59/5 * * * *`で呼び出されることを想定した�
 * その回にスキャンデータが届いたlocation分だけ`congestion_records`を書く。ESP32は検出0件でも`devices: []`で
   POSTしてくる前提で、その場合は`uniqueDeviceCount: 0`で記録される。ノードが全て止まって何も届かなかった
   locationは記録されない（欠測。基準値計算バッチで「誰もいなかった」と区別するために必要）
+* 同じlocationの同じ端末を複数のノードが検出したときは、どれか1つの検出が、そのノードのrssiの閾値以上なら数える。
+  閾値は`config/filter_pipeline`の`rssiFilter.nodeThresholds`（location → nodeId）から引き、無いノードには
+  `rssiThreshold`を使う
 * `config/diagnostics.enabled`が`true`の場合、location単位でフィルタ通過状況を`scan_diagnostics`に記録する。
   記録される内容にmacアドレスは含まれない（1回の集計run限りのランダムUUIDに置き換えられる）
+* `scan_diagnostics`の端末には、検出したノードとrssiの組（`detections`）も残す。ノードごとの閾値を変えたときの
+  台数を確かめるため。この項目が無い前のドキュメントもある
 * 窓に送ってきたノードの、locationと最終受信時刻を`status/node_last_seen`に記録する。一度でも送ってきたノードを
   覚えておき、止まったノードを見つけるために使う
 * ノードの停止と復旧を判定し、状態が変わったときだけ、1行のJSONのログを出す（`event`は`node_down`か`node_recovered`）。

@@ -34,14 +34,21 @@ const late = event("agg-node-a", "agg-loc-1", at("09:59"), [apple("H8", -60)]);
 // 24時間より古い
 const stale = event("agg-node-a", "agg-loc-1", "2019-12-30T09:00:00.000Z", [apple("H7", -60)]);
 const all = [inA, inB, inC, atEnd, late, stale];
+// ノードごとの閾値の確認用。H4は、ノードaでは閾値-65に届かず、ノードbでは閾値-75を超える。H5はどちらのノードでも届かない
+const perNode = [
+	event("agg-node-a", "agg-loc-1", at("10:03"), [apple("H4", -70), apple("H5", -68)]),
+	event("agg-node-b", "agg-loc-1", at("10:04"), [apple("H4", -72), apple("H5", -80)]),
+];
 
 const cleanup = async () => {
 	const refs = [
-		...all.map(e => db.collection("pending_scans").doc(docId(e))),
+		...[...all, ...perNode].map(e => db.collection("pending_scans").doc(docId(e))),
 		db.collection("congestion_records").doc(`agg-loc-1__${windowStartMs}`),
 		db.collection("congestion_records").doc(`agg-loc-2__${windowStartMs}`),
 		...["a", "b", "c"].map(n => db.collection("node_health_stats").doc(`agg-node-${n}_2019-12-31T10:00:00.000Z`)),
 		db.collection("status").doc("node_last_seen"),
+		db.collection("scan_diagnostics").doc(`agg-loc-1__${windowStartMs}`),
+		db.collection("config").doc("filter_pipeline"),
 	];
 	await Promise.all(refs.map(ref => ref.delete()));
 };
@@ -146,5 +153,34 @@ describe("POST /aggregate", () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toMatchObject({ scanCount: 0, locationCount: 0 });
 		expect((await db.collection("status").doc("node_last_seen").get()).exists).toBe(false);
+	});
+
+	test("Firestoreの設定にノードごとの閾値を入れると、台数に反映される", async () => {
+		await cleanup();
+		await db.collection("config").doc("filter_pipeline").set({
+			stages: [
+				{ name: "dedupe" },
+				{ name: "rssiFilter", rssiThreshold: -100, nodeThresholds: { "agg-loc-1": { "agg-node-a": -65, "agg-node-b": -75 } } },
+			],
+			debugModeEnabled: true,
+		});
+		for (const e of perNode) {
+			await savePendingScanEvent(e, "m");
+		}
+
+		const res = await app.request("/aggregate", { method: "POST" });
+		expect(res.status).toBe(200);
+		// H4はノードbで通り、H5はどちらのノードでも落ちるので、1台
+		const loc1 = await db.collection("congestion_records").doc(`agg-loc-1__${windowStartMs}`).get();
+		expect(loc1.data()?.uniqueDeviceCount).toBe(1);
+	});
+
+	test("診断データの端末に、検出したノードとrssiが残る", async () => {
+		const diagnostics = (await db.collection("scan_diagnostics").doc(`agg-loc-1__${windowStartMs}`).get()).data();
+		// 閾値で落ちたH5も、重複排除の直後の端末として残る
+		expect(diagnostics?.devices.map((d: { detections: unknown }) => d.detections)).toEqual([
+			[{ nodeId: "agg-node-a", rssi: -70 }, { nodeId: "agg-node-b", rssi: -72 }],
+			[{ nodeId: "agg-node-a", rssi: -68 }, { nodeId: "agg-node-b", rssi: -80 }],
+		]);
 	});
 });

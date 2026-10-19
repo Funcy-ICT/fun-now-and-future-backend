@@ -38,7 +38,7 @@ export const FilterPipelineInputSchema = z.strictObject({
   if (names[0] !== "dedupe") {
     ctx.addIssue({ code: "custom", message: "dedupe must be the first stage" });
   }
-  // ノードごとの閾値の判定は、TSとSQLの両方に入るまで使えない。保存しても集計に使われないため、拒否する
+  // ノードごとの閾値は、分析用のSQLがまだ同じ判定をしていない。保存すると、/aggregateとSQLで台数が合わなくなるため、拒否する
   if (stages.some(stage => countNodeThresholds(stage) > 0)) {
     ctx.addIssue({ code: "custom", message: "nodeThresholds is not supported yet" });
   }

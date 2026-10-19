@@ -103,7 +103,7 @@ const expectedResults = (rows: Row[], stages: StageConfig[]): WindowResult[] => 
 	}
 
 	return [...groups.values()].map(group => {
-		const { result, trace } = runPipeline(group.devices, stages);
+		const { result, trace } = runPipeline(group.devices, stages, group.location);
 		return {
 			windowStart: new Date(group.windowStart).toISOString(),
 			location: group.location,
