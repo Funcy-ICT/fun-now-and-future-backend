@@ -48,8 +48,10 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
 
   app.route("/", healthRoutes);
 
+  //役を足したときに載る先が漏れないよう、条件は「載せる役」を並べて書く(!==にすると、新しい役にも載る)
+
   //公開するサービス。esp32とサイネージからのリクエストを受ける
-  if (role !== "worker") {
+  if (role === "ingest" || role === "all") {
     app.route("/", sensorRoute);
     app.route("/", congestionRoute);
 
@@ -71,7 +73,7 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
   }
 
   //Cloud Runの認証必須にするサービス。Pub/SubとCloud Schedulerだけが呼べるようにする
-  if (role !== "ingest") {
+  if (role === "worker" || role === "all") {
     app.route("/", aggregateRoute);
     app.route("/", pubsubPushRoute);
     app.route("/", batchRoute);
