@@ -52,7 +52,12 @@ Aを採用しなかった分のコスト（いずれも日数で見積もれる�
 ## 実装
 
 - `d0935c6` Vite、`665db74` Tailwind、`659cf1c` HeroUIの導入、`65c8a34` Tailwindの読み込み（2026-09-07, PR #15）
-- 2026-09-23時点: 依存パッケージ（`@heroui/react` 3.2, `tailwindcss` 4.3）は入っている。`HeroUIProvider`、`@theme`のトークン、ESLintとPrettierのプラグインは未設定で、画面はViteの初期テンプレートのまま
+- 2026-09-23時点: 依存パッケージ（`@heroui/react` 3.2, `tailwindcss` 4.3）は入っている。HeroUIのCSSの読み込み（`@import "@heroui/styles"`）、Viteへの`tailwindcss()`の登録、`@theme`のトークン、ESLintとPrettierのプラグインは未設定で、画面はViteの初期テンプレートのまま
+- PR #63（2026-10-08）: `tailwindcss()`の登録と、ESLint、Prettierのプラグインを入れた。HeroUIは、v2の手順（`HeroUIProvider`など）で設定された。前の行に、v3には無い`HeroUIProvider`を未設定として挙げていたため（2026-10-16に直した）
+- 2026-10-16: HeroUIをv3の手順に直した。v3で要るのは、CSSの`@import "@heroui/styles"`だけで、Providerは無い
+- 結果の5との差分
+  - 余白は`@theme`ではなく、ESLintで絞る。HeroUIの部品のCSSは既定の段階（`h-10`、`px-4`など）を使うため、`@theme`で既定の段階を消すと部品が崩れる
+  - ESLintのプラグインは、`eslint-plugin-tailwindcss`の代わりに`eslint-plugin-better-tailwindcss`を使う。`eslint-plugin-tailwindcss`は、任意の値は禁止できる（`no-arbitrary-value`）が、Tailwindのクラスを個別に禁止するルールが無く、余白の段階を絞れない。`no-restricted-classes`で、余白（`p`、`m`、`gap`、`space`）を`0`、`1`、`2`、`4`、`6`、`8`（0、4、8、16、24、32px）の段階に限り、任意の値も禁止している
 
 ## 一次資料
 
