@@ -5,6 +5,10 @@ import { Timestamp } from "firebase-admin/firestore";
 // 増やすときは、ここに足してフロントの表示も分ける
 export const PR_ASSET_CONTENT_TYPES = ["image/jpeg", "image/png"] as const;
 
+// 投稿画面に出す掲載許諾の文言の版。文言を変えたら、版も変える。文言は版ごとにdocs/consent.mdに残す。
+// 文言はまだ決まっていないので、仮の版にしている。学生に公開する前に、本番の版にする
+export const CONSENT_VERSION = "2026-10-draft";
+
 // サイネージに出す広報アセット
 export const PrAssetSchema = z.object({
   id: z.string().min(1, "id is required"),
