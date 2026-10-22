@@ -15,19 +15,20 @@
 | `BQ_DATASET` | BigQueryのデータセット名。テストではテスト用のデータセットに切り替える | `fnaf_analytics` |
 | `BQ_MAX_BYTES_BILLED` | 1回のクエリで課金されるバイト数の上限。未設定なら5GiB。超えるクエリは実行されずに失敗する | `5368709120` |
 | `AGGREGATE_RUNS_TOPIC` | 集計結果の履歴をpublishするPub/Subのトピック名。未設定なら履歴をpublishしない（トピックを作る前でもデプロイできる） | `aggregate-runs` |
-| `SERVICE_ROLE` | `ingest`（受信）か`worker`（処理）。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
+| `SERVICE_ROLE` | `ingest`（受信）、`worker`（処理）、`app`（投稿画面と管理画面向け）のどれか。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
 
 ## サービスの分け方（SERVICE_ROLE）
 
-同じコード・同じイメージを、環境変数`SERVICE_ROLE`を変えて、2つのCloud Runサービスとしてデプロイする。
+同じコード・同じイメージを、環境変数`SERVICE_ROLE`を変えて、3つのCloud Runサービスとしてデプロイする。サービス名は`SERVICE_ROLE`の値と揃える。
 
 | SERVICE_ROLE | 役割 | ルート | 公開 |
 | --- | --- | --- | --- |
 | `ingest` | 受信 | `/receiveSensorData`, サイネージ用のルート, `/health` | 公開（ESP32とサイネージが呼ぶ） |
 | `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/internal/batch/calc-max-device`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
+| `app` | 投稿画面と管理画面向け | `/health`（投稿と管理のルートは未実装） | 公開。認証はAuth0のアクセストークンで、アプリの中で行う（未実装） |
 | （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
 
-* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`はどれも要らない
+* `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`と`app`はどれも要らない
 * `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
 * Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
 * Cloud Schedulerは、`worker`の`/aggregate`にOIDCトークン付きで、`1-59/5 * * * *`（窓が閉じた1分後）で呼ぶ
