@@ -1,7 +1,7 @@
 import { createApp } from "./app";
 import { ErrorResponseSchema } from "./schema/api/common";
 
-const getDoc = async (role: "all" | "ingest" | "worker") => {
+const getDoc = async (role: "all" | "ingest" | "worker" | "app") => {
 	const res = await createApp(role).request("/doc");
 	return { status: res.status, doc: res.status === 200 ? await res.json() : null };
 };
@@ -29,6 +29,24 @@ describe("swagger", () => {
 	test("workerには、/docも/uiも無い", async () => {
 		expect((await getDoc("worker")).status).toBe(404);
 		expect((await createApp("worker").request("/ui")).status).toBe(404);
+	});
+
+	test("appの/docには、受信とサイネージのルートが載らない", async () => {
+		const { status, doc } = await getDoc("app");
+		expect(status).toBe(200);
+		expect(Object.keys(doc.paths)).toEqual(["/health"]);
+		expect(doc.info.description).toBe("投稿画面と管理画面向けのエンドポイント");
+	});
+
+	test("appの/docには、Bearerの認証の方式があり、APIキーの方式は無い", async () => {
+		const { doc } = await getDoc("app");
+		expect(doc.components.securitySchemes.BearerAuth).toEqual({ type: "http", scheme: "bearer", bearerFormat: "JWT" });
+		expect(doc.components.securitySchemes.ApiKeyAuth).toBeUndefined();
+	});
+
+	test("ingestの/docには、Bearerの認証の方式が無い", async () => {
+		const { doc } = await getDoc("ingest");
+		expect(doc.components.securitySchemes.BearerAuth).toBeUndefined();
 	});
 
 	test("/uiはswagger uiのHTMLを返す", async () => {
