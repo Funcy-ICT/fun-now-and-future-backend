@@ -2,6 +2,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { app } from "./app";
 import { SignageAssetsResponseSchema } from "./schema/api/signage";
 import { TEST_API_KEY } from "./testing/api_key";
+import { CONSENT_VERSION } from "./schema/pr_asset";
 
 describe("GET /signage/assets", () => {
   const originalBucket = process.env.PR_ASSET_BUCKET;
@@ -29,6 +30,8 @@ describe("GET /signage/assets", () => {
       publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
       publishUntil: null,
       createdAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+      submittedBy: { uid: "google-oauth2|1234567890", email: "poster@fun.ac.jp" },
+      consent: { version: CONSENT_VERSION, agreedAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")) },
     });
 
     try {
@@ -69,6 +72,8 @@ describe("GET /signage/assets", () => {
       publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
       publishUntil: Timestamp.fromDate(new Date("2020-02-01T00:00:00Z")),
       createdAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+      submittedBy: { uid: "google-oauth2|1234567890", email: "poster@fun.ac.jp" },
+      consent: { version: CONSENT_VERSION, agreedAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")) },
     });
 
     try {
@@ -97,6 +102,8 @@ describe("GET /signage/assets", () => {
       publishFrom: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
       publishUntil: null,
       createdAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")),
+      submittedBy: { uid: "google-oauth2|1234567890", email: "poster@fun.ac.jp" },
+      consent: { version: CONSENT_VERSION, agreedAt: Timestamp.fromDate(new Date("2020-01-01T00:00:00Z")) },
     });
 
     try {

@@ -23,6 +23,16 @@ export const PrAssetSchema = z.object({
   publishFrom: z.instanceof(Timestamp),
   publishUntil: z.instanceof(Timestamp).nullable(),
   createdAt: z.instanceof(Timestamp),
+  // 投稿した人。uidはAuth0のsub。メールアドレスは連絡先として持つ。サイネージには返さない
+  submittedBy: z.object({
+    uid: z.string().min(1, "submittedBy.uid is required"),
+    email: z.email(),
+  }),
+  // 同意した掲載許諾の文言の版と、同意した時刻(サーバーの時刻)
+  consent: z.object({
+    version: z.string().min(1, "consent.version is required"),
+    agreedAt: z.instanceof(Timestamp),
+  }),
 });
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;
