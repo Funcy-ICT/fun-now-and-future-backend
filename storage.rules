@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// クライアントからは読み書きさせない。バケットはCloud Runのサービスアカウント(admin sdk)だけが使い、admin sdkはルールを通らない
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
