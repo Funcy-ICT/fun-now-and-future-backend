@@ -5,6 +5,10 @@ import { Timestamp } from "firebase-admin/firestore";
 // 増やすときは、ここに足してフロントの表示も分ける
 export const PR_ASSET_CONTENT_TYPES = ["image/jpeg", "image/png"] as const;
 
+// 投稿で選べるタグ。新しいタグが求められたら、ここに足す。
+// 保存する形のtagは文字列のままにする。値を変えたときに、前の投稿が検証で一覧から外れないため
+export const PR_ASSET_TAGS = ["お知らせ", "イベント", "募集", "その他"] as const;
+
 // 投稿画面に出す掲載許諾の文言の版。文言を変えたら、版も変える。文言は版ごとにdocs/consent.mdに残す。
 // 文言はまだ決まっていないので、仮の版にしている。学生に公開する前に、本番の版にする
 export const CONSENT_VERSION = "2026-10-draft";
