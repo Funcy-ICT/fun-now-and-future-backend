@@ -45,3 +45,11 @@ export const userAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>
   return createUserAuthMiddleware(jwks, issuer, audience)(c, next);
 });
 
+// 管理のルートに、userAuthMiddlewareの後に付ける。権限はauth0のrbacで付ける
+export const requirePermission = (permission: string) =>
+  createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    if (!c.get("user").permissions.includes(permission)) {
+      return c.json({ status: "error", message: "Forbidden: missing permission" }, 403);
+    }
+    return next();
+  });
