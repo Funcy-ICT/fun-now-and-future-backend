@@ -1,6 +1,8 @@
 import { PrAsset } from "../schema/pr_asset";
 import { getApprovedPrAssets } from "../repositories/firestore";
 import { PrAssetDto } from "../schema/api/signage";
+import { Timestamp } from "firebase-admin/firestore";
+import { jstDate, jstDateStartMs } from "./jst";
 
 
 export const isPublished = (asset: PrAsset, now: Date): boolean => {
@@ -33,4 +35,25 @@ const toDto = (asset: PrAsset): PrAssetDto => ({
 export const listPublishedPrAssets = async (now: Date = new Date()): Promise<PrAssetDto[]> => {
   const assets = await getApprovedPrAssets();
   return assets.filter(asset => isPublished(asset, now)).map(toDto);
+};
+
+// 終わりの日が今日(日本時間)より前のときに投げる。承認しても一覧に出ないので、投稿のエンドポイントで400にする
+export class PublishPeriodEndedError extends Error {}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// 投稿画面からは日付だけを受け取る。始まりはその日の日本時間0:00、終わりはその日の日本時間23:59:59にする。
+// 終わりを省略したら無期限(null)。始まりは今日より前でもよい
+export const toPublishPeriod = (
+  publishFrom: string,
+  publishUntil: string | undefined,
+  now: Date,
+): { publishFrom: Timestamp; publishUntil: Timestamp | null } => {
+  if (publishUntil !== undefined && publishUntil < jstDate(now.getTime())) {
+    throw new PublishPeriodEndedError("publishUntil must not be before today");
+  }
+  return {
+    publishFrom: Timestamp.fromMillis(jstDateStartMs(publishFrom)),
+    publishUntil: publishUntil === undefined ? null : Timestamp.fromMillis(jstDateStartMs(publishUntil) + DAY_MS - 1000),
+  };
 };
