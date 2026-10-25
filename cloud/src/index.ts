@@ -3,6 +3,7 @@ import { app, getServiceRole } from "./app";
 import { getHashKey } from "./lib/hash_key";
 import { getScanEventsTopic } from "./lib/pubsub";
 import { getApiKey } from "./lib/api_key";
+import { getAuth0Config } from "./lib/auth0";
 
 const role = getServiceRole();
 if (role === "all") {
@@ -15,6 +16,12 @@ if (role === "ingest" || role === "all") {
   getHashKey();
   getScanEventsTopic();
   getApiKey();
+}
+
+//投稿画面と管理画面向けのサービスは、auth0の設定が無いと、どのリクエストも通らない。
+//ローカル(all)では、auth0を使わないルートを試せるよう、確かめない
+if (role === "app") {
+  getAuth0Config();
 }
 
 //サーバー起動
