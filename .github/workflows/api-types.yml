@@ -1,0 +1,40 @@
+name: API types
+
+# api-types-v0.1.0のようなタグを切ると、AppTypeの型定義をパッケージにして、Releaseに添付する
+on:
+  push:
+    tags: ["api-types-v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: cloud
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cloud/package-lock.json
+
+      - run: npm ci
+      - run: npm run build:types
+
+      - name: Pack
+        working-directory: cloud/api-types
+        run: |
+          cp -r ../types types
+          npm version "${GITHUB_REF_NAME#api-types-v}" --no-git-tag-version
+          npm pack
+          mv fnaf-api-types-*.tgz api-types.tgz
+
+      - name: Release
+        working-directory: cloud/api-types
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" api-types.tgz --title "$GITHUB_REF_NAME" --notes "フロントのpackage.jsonに、このReleaseのapi-types.tgzのurlを書いて使う"

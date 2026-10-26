@@ -153,6 +153,30 @@ if (res.status === 200) {
 * `hono`のバージョンは、`cloud/`とフロントで揃える
 * レスポンスの型に名前を付けたいときは、自分で書かずに`hono/client`の`InferResponseType`を使う
   （例: `InferResponseType<typeof api.getCongestion.$get, 200>`）
-* 相対パスで読むので、使えるのは同じリポジトリの中のフロントだけ。別のリポジトリからは、`/doc`のOpenAPIから型を作る
+* 相対パスで読むので、使えるのは同じリポジトリの中のフロントだけ。別のリポジトリからは、下のパッケージを使う
 * CORSはまだ設定していない。ブラウザで別のオリジンから呼ぶには、バックエンドに`hono/cors`を入れるか、開発中は
   Viteのproxyを使う（未定）
+
+### 別のリポジトリのフロントから使うとき
+`api-types-v0.1.0`のようなタグを切ると、GitHub Actions（`.github/workflows/api-types.yml`）が`types/`を
+パッケージ`@fnaf/api-types`にして、Releaseに`api-types.tgz`を添付する。パッケージの`package.json`は`api-types/`にある。
+
+フロントの`package.json`に、Releaseのurlを書く。リポジトリが公開されているので、トークンは要らない。
+
+```json
+"devDependencies": {
+  "@fnaf/api-types": "https://github.com/Funcy-ICT/fun-now-and-future-backend/releases/download/api-types-v0.1.0/api-types.tgz"
+}
+```
+
+```ts
+import { hc } from "hono/client";
+import type { AppType } from "@fnaf/api-types";
+
+const api = hc<AppType>("/"); // Viteのproxyを使うときは相対パス
+```
+
+* フロントには`hono`も入れる。`@hono/zod-openapi`と`zod`は型を読むためだけに要るもので、パッケージの
+  `peerDependencies`にしてあるので、npmが自動で入れる
+* 公開するルートやレスポンスの形を変えたら、新しいタグを切る。フロントは、urlのタグを書き換えて`npm install`する
+* タグのバージョンは、フロントが壊れる変更（ルートやフィールドを消す、型を変える）なら真ん中を、足すだけなら右端を上げる
