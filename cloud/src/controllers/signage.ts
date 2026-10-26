@@ -45,7 +45,8 @@ const getSignageAssetsRoute = createRoute({
   summary: "掲載中の広報アセットの一覧",
   description: "掲載期間内のアセットだけを返す(statusがapprovedで、publishFromからpublishUntilまでの間。"
     + "publishUntilがnullなら無期限)。実体は返さず、公開バケット上のURLを返す。"
-    + "投稿と承認の手段はまだ無く、Firestoreのコンソールとgcloud storage cpで手で入れる",
+    + "投稿はPOST /pr-assets(appのサービス)から入るが、承認の手段はまだ無い。"
+    + "承認は、非公開のバケットからgcloud storage cpで公開バケットへコピーし、Firestoreのコンソールでstatusをapprovedにする",
   middleware: [signageAuthMiddleware] as const,
   security: [{ ApiKeyAuth: [] }],
   responses: {
