@@ -6,6 +6,7 @@ import { errorHandler } from "./middlewares/error_handler";
 import { aggregateRoute } from "./controllers/sensor";
 import { pubsubPushRoute } from "./controllers/pubsub_push";
 import { batchRoute } from "./controllers/batch";
+import { prAssetRoute } from "./controllers/pr_asset";
 import { HealthResponseSchema } from "./schema/api/common";
 
 export type ServiceRole = "ingest" | "worker" | "app" | "all";
@@ -68,8 +69,9 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
     });
   }
 
-  //投稿画面と管理画面から呼ぶサービス。Auth0のアクセストークンで認証する。ルートはまだ無い
+  //投稿画面と管理画面から呼ぶサービス。Auth0のアクセストークンで認証する
   if (role === "app" || role === "all") {
+    app.route("/", prAssetRoute);
     app.openAPIRegistry.registerComponent("securitySchemes", "BearerAuth", {
       type: "http",
       scheme: "bearer",

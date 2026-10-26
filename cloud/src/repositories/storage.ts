@@ -10,3 +10,11 @@ export const savePrivatePrAssetFile = async (id: string, data: Buffer, contentTy
     .file(prAssetObjectName(id))
     .save(data, { contentType, resumable: false });
 };
+
+// 投稿の保存に失敗したときに、置いたファイルを消す。無くてもよい
+export const deletePrivatePrAssetFile = async (id: string): Promise<void> => {
+  await storage
+    .bucket(getPrAssetPrivateBucket())
+    .file(prAssetObjectName(id))
+    .delete({ ignoreNotFound: true });
+};

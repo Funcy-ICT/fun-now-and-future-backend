@@ -42,3 +42,9 @@ export const PrAssetSubmitInputSchema = z.strictObject({
   { message: "publishUntil must not be before publishFrom", path: ["publishUntil"] },
 );
 export type PrAssetSubmitInput = z.infer<typeof PrAssetSubmitInputSchema>;
+
+// POST /pr-assets のレスポンス(201)。審査を待つので、statusはいつもpending
+export const PrAssetSubmitResponseSchema = z.object({
+  id: z.uuid().openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
+  status: z.literal("pending").openapi({ description: "審査待ち。承認されるまでサイネージには出ない" }),
+}).openapi("PrAssetSubmitResponse");
