@@ -27,6 +27,7 @@
 | `GET /getCongestion` | サイネージ、アプリ | なし | 指定したlocationの最新の混雑度 |
 | `GET /getCongestionHistory` | サイネージ、アプリ | なし | 指定したlocationの混雑度の履歴 |
 | `GET /signage/assets` | サイネージ | `x-api-key` | 掲載中の広報アセットの一覧 |
+| `POST /pr-assets` | 投稿画面 | Auth0のアクセストークン（`Authorization: Bearer`） | 広報アセットを投稿する。審査待ち（`pending`）で入り、承認されるまでサイネージには出ない。`app`だけに載る |
 
 * `level`が`null`のときの読み方など、フロント向けの説明は[#25](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/25)
 

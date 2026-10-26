@@ -22,6 +22,7 @@ src/
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
 │   ├── pubsub_push.ts     # /pubsub/scan-events（Pub/Subのプッシュを受けてpending_scansに保存）
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
+│   ├── pr_asset.ts        # POST /pr-assets（投稿）
 │   └── batch.ts           # /internal/batch/calc-max-device
 ├── services/              # ビジネスロジック
 │   ├── congestion.ts      # 混雑度レベル(1〜9)の判定（toLevel）
@@ -38,6 +39,7 @@ src/
 │   ├── node_monitor.ts    # ノードの最終受信時刻の更新と、停止・復旧の判定
 │   ├── jst.ts             # 日本時間の日付・時・稼働時間帯の範囲
 │   ├── pr_asset_file.ts   # 投稿された画像の種類の判定と、EXIFなどのメタデータの除去
+│   ├── pr_asset_submit.ts # 投稿の受け付け（画像を非公開のバケットに置き、pendingで保存する）
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
 │   ├── baseline_settings.ts # 基準値の設定の解決(locationの上書き→全体の既定値→コードの既定値)
 │   ├── daily_summary.ts   # 1日分のcongestion_recordsのまとめ
@@ -46,7 +48,7 @@ src/
 ├── repositories/          # Firestore, Pub/Sub, BigQuery, Cloud Storageへの読み書きのみ
 │   ├── firestore.ts
 │   ├── pubsub.ts          # メッセージをPub/Subのトピックにpublish
-│   ├── storage.ts         # 投稿された画像を非公開のバケットに置く
+│   ├── storage.ts         # 投稿された画像を非公開のバケットに置く、消す
 │   └── bigquery.ts        # 課金の上限を付けてクエリを実行
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証

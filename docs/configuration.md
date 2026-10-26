@@ -9,7 +9,7 @@
 | `PORT` | HTTPサーバーの待受ポート | `8080` |
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
-| `PR_ASSET_PRIVATE_BUCKET` | 投稿された広報アセットを、承認の前に置く非公開のバケット名。公開しない。投稿を保存するときに必須で、未設定だと保存に失敗する | `fun-now-and-future-pr-assets-private` |
+| `PR_ASSET_PRIVATE_BUCKET` | 投稿された広報アセットを、承認の前に置く非公開のバケット名。公開しない。`app`では必須で、未設定だと起動に失敗する | `fun-now-and-future-pr-assets-private` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
 | `ESP32_API_KEY` | ESP32とサイネージが、ヘッダー`x-api-key`で送るAPIキー。Secret Managerの値を環境変数にマウントして渡す。受信のサービスでは必須で、未設定だと起動に失敗する | （値はリポジトリに置かない） |
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |
@@ -28,11 +28,11 @@
 | --- | --- | --- | --- |
 | `ingest` | 受信 | `/receiveSensorData`, サイネージ用のルート, `/health` | 公開（ESP32とサイネージが呼ぶ） |
 | `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/internal/batch/calc-max-device`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
-| `app` | 投稿画面と管理画面向け | `/health`（投稿と管理のルートは未実装） | 公開。認証はAuth0のアクセストークンで、アプリの中で行う（ミドルウェアだけ実装済み。ルートは未実装） |
+| `app` | 投稿画面と管理画面向け | `POST /pr-assets`, `/health`（管理のルートは未実装） | 公開。認証はAuth0のアクセストークンで、アプリの中で行う |
 | （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
 
 * `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`と`app`はどれも要らない
-* `app`は`AUTH0_DOMAIN`と`AUTH0_AUDIENCE`が無いと起動に失敗する。ローカル（未設定）では確かめない
+* `app`は`AUTH0_DOMAIN`と`AUTH0_AUDIENCE`、`PR_ASSET_PRIVATE_BUCKET`が無いと起動に失敗する。ローカル（未設定）では確かめない
 * `app`は、トークンの署名、発行元、宛先、期限に加えて、Auth0のActionで足すクレーム（`https://fun-now-and-future/email`、`https://fun-now-and-future/domain`）を確かめる。ドメインのクレームが`fun.ac.jp`でなければ、署名が正しくても401。管理のルートは、Auth0のRBACの権限（`permissions`）が無ければ403
 * `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
 * Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
