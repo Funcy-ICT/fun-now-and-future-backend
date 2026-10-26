@@ -55,6 +55,7 @@ src/
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
 │   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
 │   ├── user_auth.ts       # 投稿画面と管理画面向け。Auth0のアクセストークンの検証と、権限の確認
+│   ├── app_cors.ts        # 投稿画面と管理画面向けのcors（APP_ALLOWED_ORIGINSのオリジンだけを許す）
 │   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
 ├── schema/                # Zodスキーマ・型定義
 │   ├── api/               # 公開するエンドポイントのリクエストとレスポンス(swaggerとhono rpcで共有)
@@ -86,6 +87,7 @@ src/
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
     ├── pubsub.ts          # Pub/Subクライアントの初期化
     ├── auth0.ts           # Auth0のテナントの設定（発行元、宛先、公開鍵のurl）の読み込み
+    ├── app_origins.ts     # appを呼べる画面のオリジン（APP_ALLOWED_ORIGINS）の読み込み
     ├── storage.ts         # Cloud Storageのクライアントと、非公開と公開のバケット名の読み込み
     └── bigquery.ts        # BigQueryクライアントの初期化、テーブル名と課金の上限
 ```
