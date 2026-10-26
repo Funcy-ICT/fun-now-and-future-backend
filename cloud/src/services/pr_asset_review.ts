@@ -48,3 +48,25 @@ export const rejectPrAsset = async (
     };
   });
 
+export type RevokeActor = { user: AuthUser; role: "submitter" | "admin" };
+
+// 取り下げる。投稿した本人と管理者のどちらもできる。審査中か承認済みのものだけ。
+// statusを書いてから、公開バケットの画像を消す。逆にすると、消した後に書き込みに失敗したとき、画像の無いアセットが一覧に出るため
+export const revokePrAsset = async (id: string, actor: RevokeActor, now: Date = new Date()): Promise<PrAsset> => {
+  const asset = await updatePrAsset(id, (current) => {
+    //状態より先に確かめる。ほかの人の投稿の状態を、409で知らせないため
+    if (actor.role === "submitter" && current.submittedBy.uid !== actor.user.uid) {
+      throw new PrAssetNotFoundError(`prAssets/${id} is not found`);
+    }
+    if (current.status !== "pending" && current.status !== "approved") {
+      throw new PrAssetStatusConflictError(current.status);
+    }
+    return {
+      status: "revoked",
+      revokedBy: { ...person(actor.user), role: actor.role },
+      revokedAt: Timestamp.fromDate(now),
+    };
+  });
+  await deletePublicPrAssetFile(id);
+  return asset;
+};
