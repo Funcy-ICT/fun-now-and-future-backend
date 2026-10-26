@@ -4,6 +4,7 @@ import { getHashKey } from "./lib/hash_key";
 import { getScanEventsTopic } from "./lib/pubsub";
 import { getApiKey } from "./lib/api_key";
 import { getAuth0Config } from "./lib/auth0";
+import { getPrAssetPrivateBucket } from "./lib/storage";
 
 const role = getServiceRole();
 if (role === "all") {
@@ -18,10 +19,11 @@ if (role === "ingest" || role === "all") {
   getApiKey();
 }
 
-//投稿画面と管理画面向けのサービスは、auth0の設定が無いと、どのリクエストも通らない。
-//ローカル(all)では、auth0を使わないルートを試せるよう、確かめない
+//投稿画面と管理画面向けのサービスは、auth0の設定が無いと、どのリクエストも通らない。非公開のバケットが無いと、投稿のたびに失敗する。
+//ローカル(all)では、auth0とバケットを使わないルートを試せるよう、確かめない
 if (role === "app") {
   getAuth0Config();
+  getPrAssetPrivateBucket();
 }
 
 //サーバー起動
