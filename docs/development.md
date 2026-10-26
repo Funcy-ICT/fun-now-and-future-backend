@@ -40,6 +40,7 @@ src/
 │   ├── jst.ts             # 日本時間の日付・時・稼働時間帯の範囲
 │   ├── pr_asset_file.ts   # 投稿された画像の種類の判定と、EXIFなどのメタデータの除去
 │   ├── pr_asset_submit.ts # 投稿の受け付け（画像を非公開のバケットに置き、pendingで保存する）
+│   ├── pr_asset_review.ts # 投稿の承認（公開バケットへのコピー）、却下、取り下げ（公開バケットからの削除）
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
 │   ├── baseline_settings.ts # 基準値の設定の解決(locationの上書き→全体の既定値→コードの既定値)
 │   ├── daily_summary.ts   # 1日分のcongestion_recordsのまとめ
@@ -48,7 +49,7 @@ src/
 ├── repositories/          # Firestore, Pub/Sub, BigQuery, Cloud Storageへの読み書きのみ
 │   ├── firestore.ts
 │   ├── pubsub.ts          # メッセージをPub/Subのトピックにpublish
-│   ├── storage.ts         # 投稿された画像を非公開のバケットに置く、消す
+│   ├── storage.ts         # 投稿された画像を非公開のバケットに置く、消す。承認と取り下げで、公開バケットへコピーする、消す
 │   └── bigquery.ts        # 課金の上限を付けてクエリを実行
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
@@ -85,7 +86,7 @@ src/
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
     ├── pubsub.ts          # Pub/Subクライアントの初期化
     ├── auth0.ts           # Auth0のテナントの設定（発行元、宛先、公開鍵のurl）の読み込み
-    ├── storage.ts         # Cloud Storageのクライアントと、非公開のバケット名の読み込み
+    ├── storage.ts         # Cloud Storageのクライアントと、非公開と公開のバケット名の読み込み
     └── bigquery.ts        # BigQueryクライアントの初期化、テーブル名と課金の上限
 ```
 
