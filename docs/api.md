@@ -28,6 +28,8 @@
 | `GET /getCongestionHistory` | サイネージ、アプリ | なし | 指定したlocationの混雑度の履歴 |
 | `GET /signage/assets` | サイネージ | `x-api-key` | 掲載中の広報アセットの一覧 |
 | `POST /pr-assets` | 投稿画面 | Auth0のアクセストークン（`Authorization: Bearer`） | 広報アセットを投稿する。審査待ち（`pending`）で入り、承認されるまでサイネージには出ない。`app`だけに載る |
+| `GET /pr-assets/mine` | 投稿画面（ダッシュボード） | Auth0のアクセストークン | 自分の投稿の一覧（新しい順）。審査の状態と、却下の理由。`app`だけに載る |
+| `POST /pr-assets/{id}/withdraw` | 投稿画面（ダッシュボード） | Auth0のアクセストークン | 自分の投稿を取り下げる。ほかの人の投稿は404。`app`だけに載る |
 
 * `level`が`null`のときの読み方など、フロント向けの説明は[#25](https://github.com/Funcy-ICT/fun-now-and-future-backend/issues/25)
 

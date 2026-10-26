@@ -29,7 +29,7 @@
 | --- | --- | --- | --- |
 | `ingest` | 受信 | `/receiveSensorData`, サイネージ用のルート, `/health` | 公開（ESP32とサイネージが呼ぶ） |
 | `worker` | 処理 | `/pubsub/scan-events`, `/aggregate`, `/internal/batch/calc-max-device`, `/health` | Cloud Runの認証必須。呼び出しをPub/SubとCloud Schedulerのサービスアカウントだけに許可する |
-| `app` | 投稿画面と管理画面向け | `POST /pr-assets`, `/health`（管理のルートは未実装） | 公開。認証はAuth0のアクセストークンで、アプリの中で行う |
+| `app` | 投稿画面と管理画面向け | `POST /pr-assets`, `GET /pr-assets/mine`, `POST /pr-assets/{id}/withdraw`, `/health`（管理のルートは未実装） | 公開。認証はAuth0のアクセストークンで、アプリの中で行う |
 | （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
 
 * `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`と`app`はどれも要らない
