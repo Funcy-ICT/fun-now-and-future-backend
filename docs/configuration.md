@@ -9,6 +9,7 @@
 | `PORT` | HTTPサーバーの待受ポート | `8080` |
 | `GCLOUD_PROJECT` | Firestore接続先プロジェクトID | `fun-now-and-future` |
 | `PR_ASSET_BUCKET` | 広報アセット公開バケット名（`GET /signage/assets`のURL組み立てに必須） | `fun-now-and-future-pr-assets` |
+| `PR_ASSET_PRIVATE_BUCKET` | 投稿された広報アセットを、承認の前に置く非公開のバケット名。公開しない。投稿を保存するときに必須で、未設定だと保存に失敗する | `fun-now-and-future-pr-assets-private` |
 | `MAC_HASH_KEY` | macアドレスをハッシュ化(HMAC-SHA256)する鍵。32文字以上。Secret Managerの値を環境変数にマウントして渡す。未設定や短すぎる場合は起動に失敗する | （値はリポジトリに置かない） |
 | `ESP32_API_KEY` | ESP32とサイネージが、ヘッダー`x-api-key`で送るAPIキー。Secret Managerの値を環境変数にマウントして渡す。受信のサービスでは必須で、未設定だと起動に失敗する | （値はリポジトリに置かない） |
 | `SCAN_EVENTS_TOPIC` | 受信したデータをpublishするPub/Subのトピック名。受信のサービスでは必須で、未設定だと起動に失敗する | `scan-events` |

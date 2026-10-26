@@ -5,6 +5,10 @@ import { Timestamp } from "firebase-admin/firestore";
 // 増やすときは、ここに足してフロントの表示も分ける
 export const PR_ASSET_CONTENT_TYPES = ["image/jpeg", "image/png"] as const;
 
+// 投稿画面に出す掲載許諾の文言の版。文言を変えたら、版も変える。文言は版ごとにdocs/consent.mdに残す。
+// 文言はまだ決まっていないので、仮の版にしている。学生に公開する前に、本番の版にする
+export const CONSENT_VERSION = "2026-10-draft";
+
 // サイネージに出す広報アセット
 export const PrAssetSchema = z.object({
   id: z.string().min(1, "id is required"),
@@ -19,6 +23,16 @@ export const PrAssetSchema = z.object({
   publishFrom: z.instanceof(Timestamp),
   publishUntil: z.instanceof(Timestamp).nullable(),
   createdAt: z.instanceof(Timestamp),
+  // 投稿した人。uidはAuth0のsub。メールアドレスは連絡先として持つ。サイネージには返さない
+  submittedBy: z.object({
+    uid: z.string().min(1, "submittedBy.uid is required"),
+    email: z.email(),
+  }),
+  // 同意した掲載許諾の文言の版と、同意した時刻(サーバーの時刻)
+  consent: z.object({
+    version: z.string().min(1, "consent.version is required"),
+    agreedAt: z.instanceof(Timestamp),
+  }),
 });
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;

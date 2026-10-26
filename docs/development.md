@@ -10,7 +10,7 @@
 * Object Storage - Google Cloud Storage（公開バケット。広報アセット配信用。`allUsers`に`roles/storage.legacyObjectReader`のみ付与し、一覧表示権限は与えない）
 * Validation - Zod
 * API の仕様 - `@hono/zod-openapi`（Swagger）、Hono RPC（管理画面との型の共有）
-* Testing - Jest / Hono `app.request`（Firestoreエミュレータを使用）
+* Testing - Jest / Hono `app.request`（Firestore、Pub/Sub、Cloud Storageのエミュレータを使用）
 * Deploy - Docker → Cloud Run
 
 ### アーキテクチャ（層構成）
@@ -37,14 +37,16 @@ src/
 │   ├── nodes_config.ts    # ノードの設定(表示名、撤去済み)の保存と読み出し
 │   ├── node_monitor.ts    # ノードの最終受信時刻の更新と、停止・復旧の判定
 │   ├── jst.ts             # 日本時間の日付・時・稼働時間帯の範囲
+│   ├── pr_asset_file.ts   # 投稿された画像の種類の判定と、EXIFなどのメタデータの除去
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
 │   ├── baseline_settings.ts # 基準値の設定の解決(locationの上書き→全体の既定値→コードの既定値)
 │   ├── daily_summary.ts   # 1日分のcongestion_recordsのまとめ
 │   ├── baseline.ts        # 有効日の判定(完全性・水準ゲート)とbaselineの算出
 │   └── max_devices_batch.ts # 基準値(max_devices)の遡り方式での算出バッチ
-├── repositories/          # Firestore, Pub/Sub, BigQueryへの読み書きのみ
+├── repositories/          # Firestore, Pub/Sub, BigQuery, Cloud Storageへの読み書きのみ
 │   ├── firestore.ts
 │   ├── pubsub.ts          # メッセージをPub/Subのトピックにpublish
+│   ├── storage.ts         # 投稿された画像を非公開のバケットに置く
 │   └── bigquery.ts        # 課金の上限を付けてクエリを実行
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
@@ -65,7 +67,7 @@ src/
 │   ├── max_device.ts      # max_devices
 │   ├── node_status.ts     # node_health_stats
 │   ├── node_last_seen.ts  # status/node_last_seen(ノードの最終受信時刻と状態)
-│   ├── pr_asset.ts        # prAssets
+│   ├── pr_asset.ts        # prAssets（掲載許諾の版CONSENT_VERSIONも置く。文言はdocs/consent.md）
 │   ├── scan_diagnostics.ts # scan_diagnostics
 │   ├── pending_scan_event.ts # pending_scans
 │   ├── filter_pipeline.ts # フィルタの段の設定、config/filter_pipeline
@@ -80,6 +82,7 @@ src/
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
     ├── pubsub.ts          # Pub/Subクライアントの初期化
     ├── auth0.ts           # Auth0のテナントの設定（発行元、宛先、公開鍵のurl）の読み込み
+    ├── storage.ts         # Cloud Storageのクライアントと、非公開のバケット名の読み込み
     └── bigquery.ts        # BigQueryクライアントの初期化、テーブル名と課金の上限
 ```
 
@@ -139,7 +142,7 @@ npm start
   設定が無いため
 
 ### 4. 単体テストの実行
-Firestoreエミュレータを自動起動してJestテストを実行します。
+Firestore、Pub/Sub、Cloud Storageのエミュレータを自動起動してJestテストを実行します。
 ```bash
 npm test
 ```
