@@ -27,7 +27,7 @@ src/
 │   ├── congestion.ts      # 混雑度レベル(1〜9)の判定（toLevel）
 │   ├── scan_service.ts    # BLEスキャンデータの正規化・集計・重複排除
 │   ├── parseRawData.ts    # BLEアドバタイジング生データのパース
-│   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て
+│   ├── PublicRelations.ts # 広報アセットの掲載期間判定・公開URL組み立て、投稿の掲載期間の日付の変換
 │   ├── mac.ts             # macアドレスの正規化・ハッシュ化(HMAC-SHA256)・アドレス種別の推定
 │   ├── scan_event.ts      # 受信したデータからPub/Subに流すメッセージ(ScanEvent)を組み立てる
 │   ├── analysis_sql.ts    # フィルタの設定から、分析用のSQLを組み立てる
@@ -59,6 +59,7 @@ src/
 │   │   ├── auth.ts        # Auth0のアクセストークンのクレーム
 │   │   ├── signage.ts     # /getCongestion, /getCongestionHistory, /signage/assets
 │   │   ├── admin_config.ts # 管理画面から受け取る設定の形(保存の時点で厳しく検証する)
+│   │   ├── pr_asset_submit.ts # POST /pr-assets で受け取る形(multipart)
 │   │   └── sensor.ts      # /receiveSensorData のレスポンス
 │   ├── sensor_data.ts     # /receiveSensorData のリクエスト
 │   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)
@@ -67,7 +68,7 @@ src/
 │   ├── max_device.ts      # max_devices
 │   ├── node_status.ts     # node_health_stats
 │   ├── node_last_seen.ts  # status/node_last_seen(ノードの最終受信時刻と状態)
-│   ├── pr_asset.ts        # prAssets（掲載許諾の版CONSENT_VERSIONも置く。文言はdocs/consent.md）
+│   ├── pr_asset.ts        # prAssets（掲載許諾の版CONSENT_VERSIONと、投稿で選べるタグPR_ASSET_TAGSも置く。文言はdocs/consent.md）
 │   ├── scan_diagnostics.ts # scan_diagnostics
 │   ├── pending_scan_event.ts # pending_scans
 │   ├── filter_pipeline.ts # フィルタの段の設定、config/filter_pipeline
