@@ -65,7 +65,7 @@ npm start
 | --- | --- |
 | `cloud/` | バックエンド（Cloud Run で動かすもの） |
 | `admin/` | 管理画面（Vite + React。まだ初期状態） |
-| `docs/` | 文書。[overview.md](docs/overview.md)（全体）、[api.md](docs/api.md)（API）、[configuration.md](docs/configuration.md)（環境変数と設定）、[development.md](docs/development.md)（開発とデプロイ）、[adr/](docs/adr/README.md)（設計判断の記録） |
+| `docs/` | 文書。[overview.md](docs/overview.md)（全体）、[api.md](docs/api.md)（API）、[configuration.md](docs/configuration.md)（環境変数と設定）、[development.md](docs/development.md)（開発とデプロイ）、[consent.md](docs/consent.md)（掲載許諾の文言）、[adr/](docs/adr/README.md)（設計判断の記録） |
 
 
 ## 今の状態と、残っている作業

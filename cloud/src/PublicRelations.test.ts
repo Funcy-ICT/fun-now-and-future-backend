@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { isPublished } from "./services/PublicRelations";
-import { PrAsset } from "./schema/pr_asset";
+import { PrAsset, CONSENT_VERSION } from "./schema/pr_asset";
 
 const baseAsset: PrAsset = {
   id: "asset-1",
@@ -13,6 +13,8 @@ const baseAsset: PrAsset = {
   publishFrom: Timestamp.fromDate(new Date("2026-01-01T00:00:00Z")),
   publishUntil: Timestamp.fromDate(new Date("2026-12-31T23:59:59Z")),
   createdAt: Timestamp.fromDate(new Date("2025-12-01T00:00:00Z")),
+  submittedBy: { uid: "google-oauth2|1234567890", email: "poster@fun.ac.jp" },
+  consent: { version: CONSENT_VERSION, agreedAt: Timestamp.fromDate(new Date("2025-12-01T00:00:00Z")) },
 };
 
 const now = new Date("2026-06-01T00:00:00Z");
