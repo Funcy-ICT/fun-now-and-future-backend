@@ -11,3 +11,12 @@ export const getPrAssetPrivateBucket = (): string => {
   }
   return bucket;
 };
+
+// サイネージが読む公開バケット。承認したファイルを置く
+export const getPrAssetPublicBucket = (): string => {
+  const bucket = process.env.PR_ASSET_BUCKET;
+  if (!bucket) {
+    throw new Error("PR_ASSET_BUCKET is not set");
+  }
+  return bucket;
+};
