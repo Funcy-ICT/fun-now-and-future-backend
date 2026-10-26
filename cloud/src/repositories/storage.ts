@@ -27,3 +27,10 @@ export const copyPrAssetFileToPublic = async (id: string): Promise<void> => {
     .copy(storage.bucket(getPrAssetPublicBucket()).file(prAssetObjectName(id)));
 };
 
+// 取り下げたときに、公開バケットから消す。statusを変えるだけでは、直リンクで読めるため。無くてもよい
+export const deletePublicPrAssetFile = async (id: string): Promise<void> => {
+  await storage
+    .bucket(getPrAssetPublicBucket())
+    .file(prAssetObjectName(id))
+    .delete({ ignoreNotFound: true });
+};
