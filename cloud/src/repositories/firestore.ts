@@ -531,3 +531,17 @@ export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
 export const createPrAsset = async (asset: PrAsset): Promise<void> => {
   await db.collection("prAssets").doc(asset.id).create(asset);
 };
+
+// 1件を読む。無いか、検証に通らなければnull
+export const getPrAsset = async (id: string): Promise<PrAsset | null> => {
+  const doc = await db.collection("prAssets").doc(id).get();
+  if (!doc.exists) return null;
+
+  const parsed = PrAssetSchema.safeParse(doc.data());
+  if (!parsed.success) {
+    console.error(`Invalid data in prAssets document ${id}:`, parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
+};
+
