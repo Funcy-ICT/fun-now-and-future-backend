@@ -565,3 +565,19 @@ export const updatePrAsset = async (id: string, build: (current: PrAsset) => Par
     tx.update(ref, updates);
     return next;
   });
+
+// 投稿した人の投稿を読む。並べ替えはアプリで行う。orderByを付けると複合インデックスが要るため(1人の投稿は多くない)
+export const getPrAssetsBySubmitter = async (uid: string): Promise<PrAsset[]> => {
+  const result: PrAsset[] = [];
+  const snapshot = await db.collection("prAssets").where("submittedBy.uid", "==", uid).get();
+
+  for (const doc of snapshot.docs) {
+    const parsed = PrAssetSchema.safeParse(doc.data());
+    if (!parsed.success) {
+      console.error(`Invalid data in prAssets document ${doc.id}:`, parsed.error.issues);
+      continue;
+    }
+    result.push(parsed.data);
+  }
+  return result;
+};
