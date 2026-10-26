@@ -8,14 +8,14 @@ import { pubsubPushRoute } from "./controllers/pubsub_push";
 import { batchRoute } from "./controllers/batch";
 import { HealthResponseSchema } from "./schema/api/common";
 
-export type ServiceRole = "ingest" | "worker" | "all";
+export type ServiceRole = "ingest" | "worker" | "app" | "all";
 
-//受信(ingest)と処理(worker)を別のCloud Runサービスとしてデプロイするための切り替え。未設定なら全部のルートを載せる(ローカル, テスト)。
+//受信(ingest)、処理(worker)、投稿画面と管理画面向け(app)を別のCloud Runサービスとしてデプロイするための切り替え。未設定なら全部のルートを載せる(ローカル, テスト)。
 //綴りの間違いで全部のルートが公開されないよう、知らない値は例外にする。
 export const getServiceRole = (): ServiceRole => {
   const role = process.env.SERVICE_ROLE;
   if (!role) return "all";
-  if (role === "ingest" || role === "worker") return role;
+  if (role === "ingest" || role === "worker" || role === "app") return role;
   throw new Error(`Unknown SERVICE_ROLE: ${role}`);
 };
 
@@ -39,6 +39,13 @@ const clientRoutes = new OpenAPIHono()
 
 export type AppType = typeof clientRoutes;
 
+//サービスごとに、/docに載るルートが違うので、説明も分ける
+const DOC_DESCRIPTIONS: Record<Exclude<ServiceRole, "worker">, string> = {
+  ingest: "esp32からの受信と、サイネージ向けのエンドポイント",
+  app: "投稿画面と管理画面向けのエンドポイント",
+  all: "全部のエンドポイント(ローカル, テスト用)",
+};
+
 //ルートを一つにまとめる。swaggerの定義をまとめられるよう、OpenAPIHonoにする
 export const createApp = (role: ServiceRole): OpenAPIHono => {
   const app = new OpenAPIHono();
@@ -48,30 +55,43 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
 
   app.route("/", healthRoutes);
 
+  //役を足したときに載る先が漏れないよう、条件は「載せる役」を並べて書く(!==にすると、新しい役にも載る)
+
   //公開するサービス。esp32とサイネージからのリクエストを受ける
-  if (role !== "worker") {
+  if (role === "ingest" || role === "all") {
     app.route("/", sensorRoute);
     app.route("/", congestionRoute);
-
-    //swaggerは公開するルートだけを載せる。内部用のルート(workerのもの)はOpenAPIHonoで定義していないので、ここには出ない
     app.openAPIRegistry.registerComponent("securitySchemes", "ApiKeyAuth", {
       type: "apiKey",
       in: "header",
       name: "x-api-key",
     });
+  }
+
+  //投稿画面と管理画面から呼ぶサービス。Auth0のアクセストークンで認証する。ルートはまだ無い
+  if (role === "app" || role === "all") {
+    app.openAPIRegistry.registerComponent("securitySchemes", "BearerAuth", {
+      type: "http",
+      scheme: "bearer",
+      bearerFormat: "JWT",
+    });
+  }
+
+  //swaggerは公開するルートだけを載せる。内部用のルート(workerのもの)はOpenAPIHonoで定義していないので、ここには出ない
+  if (role === "ingest" || role === "app" || role === "all") {
     app.doc("/doc", {
       openapi: "3.0.0",
       info: {
         title: "Fun Now and Future API",
         version: "1.0.0",
-        description: "esp32からの受信と、サイネージ向けのエンドポイント",
+        description: DOC_DESCRIPTIONS[role],
       },
     });
     app.get("/ui", swaggerUI({ url: "/doc" }));
   }
 
   //Cloud Runの認証必須にするサービス。Pub/SubとCloud Schedulerだけが呼べるようにする
-  if (role !== "ingest") {
+  if (role === "worker" || role === "all") {
     app.route("/", aggregateRoute);
     app.route("/", pubsubPushRoute);
     app.route("/", batchRoute);

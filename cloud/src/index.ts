@@ -11,7 +11,7 @@ if (role === "all") {
 
 //受信を受け持つサービスは、鍵、トピック、APIキーが未設定のままデプロイされると、受信のたびに失敗してしまう。起動時に確認して防ぐ。
 //処理側(worker)はmacをハッシュ化せず、publishもせず、APIキーで認証するルートも無いので、どれも要らない。
-if (role !== "worker") {
+if (role === "ingest" || role === "all") {
   getHashKey();
   getScanEventsTopic();
   getApiKey();
