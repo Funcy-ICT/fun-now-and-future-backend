@@ -51,3 +51,12 @@ export const PrAssetSchema = z.object({
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;
 
+// 承認や取り下げで、アセットが無いときに投げる。ほかの人の投稿を、本人として取り下げようとしたときも投げる(あることを知らせないため)
+export class PrAssetNotFoundError extends Error {}
+
+// 承認や取り下げで、今の状態からは変えられないときに投げる(承認済みの承認、却下済みの取り下げなど)
+export class PrAssetStatusConflictError extends Error {
+  constructor(public readonly status: PrAsset["status"]) {
+    super(`prAsset status is ${status}`);
+  }
+}
