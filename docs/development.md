@@ -22,7 +22,7 @@ src/
 │   ├── sensor.ts          # /receiveSensorData, /aggregate
 │   ├── pubsub_push.ts     # /pubsub/scan-events（Pub/Subのプッシュを受けてpending_scansに保存）
 │   ├── signage.ts         # /getCongestion, /getCongestionHistory, /signage/assets
-│   ├── pr_asset.ts        # POST /pr-assets（投稿）
+│   ├── pr_asset.ts        # POST /pr-assets（投稿）、GET /pr-assets/mine、POST /pr-assets/{id}/withdraw（ダッシュボード）
 │   └── batch.ts           # /internal/batch/calc-max-device
 ├── services/              # ビジネスロジック
 │   ├── congestion.ts      # 混雑度レベル(1〜9)の判定（toLevel）
@@ -41,6 +41,7 @@ src/
 │   ├── pr_asset_file.ts   # 投稿された画像の種類の判定と、EXIFなどのメタデータの除去
 │   ├── pr_asset_submit.ts # 投稿の受け付け（画像を非公開のバケットに置き、pendingで保存する）
 │   ├── pr_asset_review.ts # 投稿の承認（公開バケットへのコピー）、却下、取り下げ（公開バケットからの削除）
+│   ├── my_pr_assets.ts    # 投稿した人のダッシュボードに出す、自分の投稿の一覧
 │   ├── statistics.ts      # 中央値・パーセンタイル(最近傍順位法)
 │   ├── baseline_settings.ts # 基準値の設定の解決(locationの上書き→全体の既定値→コードの既定値)
 │   ├── daily_summary.ts   # 1日分のcongestion_recordsのまとめ
@@ -64,6 +65,7 @@ src/
 │   │   ├── signage.ts     # /getCongestion, /getCongestionHistory, /signage/assets
 │   │   ├── admin_config.ts # 管理画面から受け取る設定の形(保存の時点で厳しく検証する)
 │   │   ├── pr_asset_submit.ts # POST /pr-assets で受け取る形(multipart)
+│   │   ├── my_pr_assets.ts # GET /pr-assets/mine、POST /pr-assets/{id}/withdraw
 │   │   └── sensor.ts      # /receiveSensorData のレスポンス
 │   ├── sensor_data.ts     # /receiveSensorData のリクエスト
 │   ├── scan_event.ts      # Pub/Subに流すメッセージ(BigQueryのscan_eventsテーブルに対応)

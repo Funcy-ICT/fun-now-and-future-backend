@@ -34,7 +34,7 @@ describe("swagger", () => {
 	test("appの/docには、受信とサイネージのルートが載らない", async () => {
 		const { status, doc } = await getDoc("app");
 		expect(status).toBe(200);
-		expect(Object.keys(doc.paths).sort()).toEqual(["/health", "/pr-assets"]);
+		expect(Object.keys(doc.paths).sort()).toEqual(["/health", "/pr-assets", "/pr-assets/mine", "/pr-assets/{id}/withdraw"]);
 		expect(doc.info.description).toBe("投稿画面と管理画面向けのエンドポイント");
 	});
 

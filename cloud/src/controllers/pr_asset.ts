@@ -7,6 +7,10 @@ import { PR_ASSET_MAX_FILE_BYTES, PrAssetSubmitInputSchema, PrAssetSubmitRespons
 import { InvalidPrAssetFileError } from "../services/pr_asset_file";
 import { submitPrAsset } from "../services/pr_asset_submit";
 import { PublishPeriodEndedError } from "../services/PublicRelations";
+import { MyPrAssetsResponseSchema, PrAssetIdParamSchema, WithdrawPrAssetResponseSchema } from "../schema/api/my_pr_assets";
+import { PrAssetNotFoundError, PrAssetStatusConflictError } from "../schema/pr_asset";
+import { listMyPrAssets } from "../services/my_pr_assets";
+import { revokePrAsset } from "../services/pr_asset_review";
 
 // exampleはルートごとに書く。エラーは共通のスキーマで、無いとmessageが"string"としか出ないため
 const jsonContent = <T,>(schema: T, description: string, example?: unknown) => ({
@@ -54,6 +58,45 @@ export const createPrAssetRoute = (auth: AuthMiddleware) => {
     },
   });
 
+  const listMyPrAssetsRoute = createRoute({
+    method: "get",
+    path: "/pr-assets/mine",
+    summary: "自分の投稿の一覧(新しい順)",
+    description: "投稿した人のダッシュボードに出す。審査の状態と、却下の理由を返す。画像は返さない",
+    middleware: [auth] as const,
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: jsonContent(MyPrAssetsResponseSchema, "自分の投稿"),
+      401: jsonContent(ErrorResponseSchema, "アクセストークンが無い、または違う", {
+        status: "error",
+        message: "Unauthorized: Invalid or missing access token",
+      }),
+    },
+  });
+
+  const withdrawPrAssetRoute = createRoute({
+    method: "post",
+    path: "/pr-assets/{id}/withdraw",
+    summary: "自分の投稿を取り下げる",
+    description: "審査中か承認済みの自分の投稿を取り下げる。承認済みなら、サイネージから外れる。"
+      + "ほかの人の投稿は、あることを知らせないよう404にする。直すときは、取り下げて投稿し直す",
+    middleware: [auth] as const,
+    security: [{ BearerAuth: [] }],
+    request: { params: PrAssetIdParamSchema },
+    responses: {
+      200: jsonContent(WithdrawPrAssetResponseSchema, "取り下げた"),
+      401: jsonContent(ErrorResponseSchema, "アクセストークンが無い、または違う", {
+        status: "error",
+        message: "Unauthorized: Invalid or missing access token",
+      }),
+      404: jsonContent(ErrorResponseSchema, "自分の投稿に無い", { status: "error", message: "Not found" }),
+      409: jsonContent(ErrorResponseSchema, "却下済みか取り下げ済みで、取り下げられない", {
+        status: "error",
+        message: "prAsset status is rejected",
+      }),
+    },
+  });
+
   // 検証に失敗したときは、ほかのルートと同じ形の400を返す
   return new OpenAPIHono<{ Variables: AuthVariables }>({
     defaultHook: (result, c) =>
@@ -66,6 +109,25 @@ export const createPrAssetRoute = (auth: AuthMiddleware) => {
       } catch (err) {
         if (err instanceof PublishPeriodEndedError || err instanceof InvalidPrAssetFileError) {
           return c.json({ status: "error" as const, message: err.message }, 400);
+        }
+        throw err;
+      }
+    })
+    .openapi(listMyPrAssetsRoute, async (c) => {
+      const assets = await listMyPrAssets(c.get("user").uid);
+      return c.json({ assets }, 200);
+    })
+    .openapi(withdrawPrAssetRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        await revokePrAsset(id, { user: c.get("user"), role: "submitter" });
+        return c.json({ id, status: "revoked" as const }, 200);
+      } catch (err) {
+        if (err instanceof PrAssetNotFoundError) {
+          return c.json({ status: "error" as const, message: "Not found" }, 404);
+        }
+        if (err instanceof PrAssetStatusConflictError) {
+          return c.json({ status: "error" as const, message: err.message }, 409);
         }
         throw err;
       }
