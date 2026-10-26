@@ -189,3 +189,38 @@ curl.exe http://localhost:8080/health
 ```bash
 gcloud run deploy --source cloud
 ```
+
+### サービスアカウントとIAMロール
+
+サービスごとにサービスアカウントを分けて、要るロールだけを付ける。プロジェクト単位のロールはプロジェクトの管理者が付け、データセット単位の権限は自分たちで付ける。
+
+| サービスアカウント | ロール | 理由 | 要るとき |
+| --- | --- | --- | --- |
+| `fnaf-ingest` | `roles/datastore.viewer` | Firestoreから集計結果、設定、広報アセットを読むだけ | 初回のデプロイ |
+| `fnaf-worker` | `roles/datastore.user` | 集計結果を書き込む | 初回のデプロイ |
+| `fnaf-app` | `roles/datastore.user` | 設定と投稿を書き込む | 管理画面と投稿画面の公開 |
+| `fnaf-app` | `roles/bigquery.jobUser` | 管理画面の分析と、保持期間の変更でクエリを投げる | 管理画面と投稿画面の公開 |
+| `fnaf-worker` | `roles/bigquery.jobUser` | 設定を変えたときの再計算（#41）でクエリを投げる | #41のマージ |
+
+* BigQueryのデータを読む権限と、保持期間を変える権限は、データセット単位で付ける
+* コマンドは、macのターミナルとWindowsのPowerShell、コマンドプロンプトのどれでも動くよう、行の継続（`\`や`` ` ``）を使わず1行で書く
+
+初回のデプロイ:
+
+```bash
+gcloud projects add-iam-policy-binding funcy2022 --condition=None --member=serviceAccount:fnaf-ingest@funcy2022.iam.gserviceaccount.com --role=roles/datastore.viewer
+gcloud projects add-iam-policy-binding funcy2022 --condition=None --member=serviceAccount:fnaf-worker@funcy2022.iam.gserviceaccount.com --role=roles/datastore.user
+```
+
+管理画面と投稿画面の公開:
+
+```bash
+gcloud projects add-iam-policy-binding funcy2022 --condition=None --member=serviceAccount:fnaf-app@funcy2022.iam.gserviceaccount.com --role=roles/datastore.user
+gcloud projects add-iam-policy-binding funcy2022 --condition=None --member=serviceAccount:fnaf-app@funcy2022.iam.gserviceaccount.com --role=roles/bigquery.jobUser
+```
+
+#41のマージ:
+
+```bash
+gcloud projects add-iam-policy-binding funcy2022 --condition=None --member=serviceAccount:fnaf-worker@funcy2022.iam.gserviceaccount.com --role=roles/bigquery.jobUser
+```
