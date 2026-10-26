@@ -1,4 +1,4 @@
-import { storage, getPrAssetPrivateBucket } from "../lib/storage";
+import { storage, getPrAssetPrivateBucket, getPrAssetPublicBucket } from "../lib/storage";
 
 // 公開バケットと同じobjects/{id}に置く。承認のときに、同じ名前で公開バケットへコピーする
 export const prAssetObjectName = (id: string): string => `objects/${id}`;
@@ -18,3 +18,12 @@ export const deletePrivatePrAssetFile = async (id: string): Promise<void> => {
     .file(prAssetObjectName(id))
     .delete({ ignoreNotFound: true });
 };
+
+// 承認したときに、非公開のバケットから公開バケットの同じ名前へコピーする。種類(contentType)も引き継がれる
+export const copyPrAssetFileToPublic = async (id: string): Promise<void> => {
+  await storage
+    .bucket(getPrAssetPrivateBucket())
+    .file(prAssetObjectName(id))
+    .copy(storage.bucket(getPrAssetPublicBucket()).file(prAssetObjectName(id)));
+};
+
