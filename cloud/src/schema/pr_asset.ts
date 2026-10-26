@@ -13,6 +13,12 @@ export const PR_ASSET_TAGS = ["お知らせ", "イベント", "募集", "その�
 // 文言はまだ決まっていないので、仮の版にしている。学生に公開する前に、本番の版にする
 export const CONSENT_VERSION = "2026-10-draft";
 
+// 投稿した人と、承認や取り下げをした人。uidはAuth0のsub
+const PersonSchema = z.object({
+  uid: z.string().min(1, "uid is required"),
+  email: z.email(),
+});
+
 // サイネージに出す広報アセット
 export const PrAssetSchema = z.object({
   id: z.string().min(1, "id is required"),
@@ -28,15 +34,20 @@ export const PrAssetSchema = z.object({
   publishUntil: z.instanceof(Timestamp).nullable(),
   createdAt: z.instanceof(Timestamp),
   // 投稿した人。uidはAuth0のsub。メールアドレスは連絡先として持つ。サイネージには返さない
-  submittedBy: z.object({
-    uid: z.string().min(1, "submittedBy.uid is required"),
-    email: z.email(),
-  }),
+  submittedBy: PersonSchema,
   // 同意した掲載許諾の文言の版と、同意した時刻(サーバーの時刻)
   consent: z.object({
     version: z.string().min(1, "consent.version is required"),
     agreedAt: z.instanceof(Timestamp),
   }),
+  // 承認か却下をした管理者と時刻。pendingのときは無い。却下の理由は、投稿した人のダッシュボードに出す
+  reviewedBy: PersonSchema.optional(),
+  reviewedAt: z.instanceof(Timestamp).optional(),
+  reviewNote: z.string().optional(),
+  // 取り下げた人と時刻。投稿した本人(submitter)と管理者(admin)のどちらも取り下げられる
+  revokedBy: PersonSchema.extend({ role: z.enum(["submitter", "admin"]) }).optional(),
+  revokedAt: z.instanceof(Timestamp).optional(),
 });
 
 export type PrAsset = z.infer<typeof PrAssetSchema>;
+
