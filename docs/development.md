@@ -51,10 +51,12 @@ src/
 ├── middlewares/           # 認証・エラーハンドリングなど横断的な処理
 │   ├── sensor_auth.ts     # ESP32 / 集計・バッチエンドポイント向けAPIキー検証
 │   ├── signage_auth.ts    # サイネージ向けAPIキー検証（Honoミドルウェア）
+│   ├── user_auth.ts       # 投稿画面と管理画面向け。Auth0のアクセストークンの検証と、権限の確認
 │   └── error_handler.ts   # 共通エラーハンドラー（app.onErrorに登録）
 ├── schema/                # Zodスキーマ・型定義
 │   ├── api/               # 公開するエンドポイントのリクエストとレスポンス(swaggerとhono rpcで共有)
 │   │   ├── common.ts      # エラーのレスポンス、/health
+│   │   ├── auth.ts        # Auth0のアクセストークンのクレーム
 │   │   ├── signage.ts     # /getCongestion, /getCongestionHistory, /signage/assets
 │   │   ├── admin_config.ts # 管理画面から受け取る設定の形(保存の時点で厳しく検証する)
 │   │   └── sensor.ts      # /receiveSensorData のレスポンス
@@ -79,6 +81,7 @@ src/
     ├── firebase.ts        # Firebase Admin SDKの初期化
     ├── hash_key.ts        # macアドレスのハッシュ化に使う鍵の読み込み
     ├── pubsub.ts          # Pub/Subクライアントの初期化
+    ├── auth0.ts           # Auth0のテナントの設定（発行元、宛先、公開鍵のurl）の読み込み
     ├── storage.ts         # Cloud Storageのクライアントと、非公開のバケット名の読み込み
     └── bigquery.ts        # BigQueryクライアントの初期化、テーブル名と課金の上限
 ```
