@@ -527,3 +527,7 @@ export const getApprovedPrAssets = async (): Promise<PrAsset[]> => {
   }
   return result;
 };
+// 投稿を保存する。idはUUIDで重ならないはずだが、重なっても前の投稿を上書きしないよう、createにする
+export const createPrAsset = async (asset: PrAsset): Promise<void> => {
+  await db.collection("prAssets").doc(asset.id).create(asset);
+};
