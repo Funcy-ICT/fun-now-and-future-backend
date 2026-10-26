@@ -30,3 +30,21 @@ export const approvePrAsset = async (id: string, reviewer: AuthUser, now: Date =
   }
 };
 
+// 却下する。公開バケットには置かない。理由は、投稿した人のダッシュボードに出す
+export const rejectPrAsset = async (
+  id: string,
+  reviewer: AuthUser,
+  note?: string,
+  now: Date = new Date(),
+): Promise<PrAsset> =>
+  updatePrAsset(id, (current) => {
+    if (current.status !== "pending") throw new PrAssetStatusConflictError(current.status);
+    return {
+      status: "rejected",
+      reviewedBy: person(reviewer),
+      reviewedAt: Timestamp.fromDate(now),
+      //firestoreはundefinedの項目を書けないので、理由が無ければ項目ごと書かない
+      ...(note === undefined ? {} : { reviewNote: note }),
+    };
+  });
+
