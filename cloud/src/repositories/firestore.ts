@@ -13,7 +13,7 @@ import { ExcludedDayInput } from "../schema/excluded_day";
 import { CongestionRecord, CongestionRecordInput, CongestionRecordSchema } from "../schema/congestion_record";
 import { MaxDeviceSchema, MaxDeviceData, MaxDeviceInput } from "../schema/max_device";
 import { NodeStatusSchema, NodeStatusData } from "../schema/node_status";
-import { PrAssetSchema, PrAsset } from "../schema/pr_asset";
+import { PrAssetSchema, PrAsset, PrAssetNotFoundError } from "../schema/pr_asset";
 import { ScanDiagnosticsSchema, ScanDiagnostics } from "../schema/scan_diagnostics";
 import { PendingScanEventSchema, PendingScanEvent } from "../schema/pending_scan_event";
 
@@ -545,3 +545,23 @@ export const getPrAsset = async (id: string): Promise<PrAsset | null> => {
   return parsed.data;
 };
 
+// 状態を変える。読んだ後に別の操作(承認と取り下げが同時に来たときなど)で変わっていても上書きしないよう、
+// トランザクションの中で今のドキュメントをbuildに渡す。buildは、変えられなければ例外を投げ、変えるなら書く項目を返す
+export const updatePrAsset = async (id: string, build: (current: PrAsset) => Partial<PrAsset>): Promise<PrAsset> =>
+  db.runTransaction(async (tx) => {
+    const ref = db.collection("prAssets").doc(id);
+    const doc = await tx.get(ref);
+    const parsed = PrAssetSchema.safeParse(doc.data());
+    if (!doc.exists || !parsed.success) {
+      if (doc.exists && !parsed.success) {
+        console.error(`Invalid data in prAssets document ${id}:`, parsed.error.issues);
+      }
+      throw new PrAssetNotFoundError(`prAssets/${id} is not found`);
+    }
+
+    const updates = build(parsed.data);
+    //書いた後の形も確かめる。通らない形で書くと、一覧から外れるだけで気づけないため
+    const next = PrAssetSchema.parse({ ...parsed.data, ...updates });
+    tx.update(ref, updates);
+    return next;
+  });
