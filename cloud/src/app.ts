@@ -7,6 +7,7 @@ import { aggregateRoute } from "./controllers/sensor";
 import { pubsubPushRoute } from "./controllers/pubsub_push";
 import { batchRoute } from "./controllers/batch";
 import { prAssetRoute } from "./controllers/pr_asset";
+import { appCorsMiddleware } from "./middlewares/app_cors";
 import { HealthResponseSchema } from "./schema/api/common";
 
 export type ServiceRole = "ingest" | "worker" | "app" | "all";
@@ -71,6 +72,8 @@ export const createApp = (role: ServiceRole): OpenAPIHono => {
 
   //投稿画面と管理画面から呼ぶサービス。Auth0のアクセストークンで認証する
   if (role === "app" || role === "all") {
+    //画面はFirebase Hostingの別のオリジンにあるので、corsを付ける。ingestのルートには付けない
+    app.use("/pr-assets/*", appCorsMiddleware);
     app.route("/", prAssetRoute);
     app.openAPIRegistry.registerComponent("securitySchemes", "BearerAuth", {
       type: "http",

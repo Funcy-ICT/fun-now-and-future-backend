@@ -16,6 +16,7 @@
 | `BQ_DATASET` | BigQueryのデータセット名。テストではテスト用のデータセットに切り替える | `fnaf_analytics` |
 | `BQ_MAX_BYTES_BILLED` | 1回のクエリで課金されるバイト数の上限。未設定なら5GiB。超えるクエリは実行されずに失敗する | `5368709120` |
 | `AGGREGATE_RUNS_TOPIC` | 集計結果の履歴をpublishするPub/Subのトピック名。未設定なら履歴をpublishしない（トピックを作る前でもデプロイできる） | `aggregate-runs` |
+| `APP_ALLOWED_ORIGINS` | `app`を呼べる画面のオリジン（投稿画面と管理画面）。カンマ区切り。Firebase Hostingの`*.web.app`と`*.firebaseapp.com`の両方を入れる。末尾の`/`やパスは付けない。`app`では必須で、未設定か、オリジンの形でない値があると起動に失敗する。ローカル（`SERVICE_ROLE`が未設定）で無ければ、どのオリジンも許さない | `https://fnaf-post.web.app,https://fnaf-post.firebaseapp.com` |
 | `AUTH0_DOMAIN` | Auth0のテナントのドメイン。アクセストークンの発行元と、公開鍵（JWKS）の取得先になる。`app`では必須で、未設定だと起動に失敗する | `fun-now-and-future.jp.auth0.com` |
 | `AUTH0_AUDIENCE` | Auth0に登録したAPIの識別子。アクセストークンの宛先（`aud`）がこれと違えば401。`app`では必須で、未設定だと起動に失敗する | `https://fun-now-and-future/api` |
 | `SERVICE_ROLE` | `ingest`（受信）、`worker`（処理）、`app`（投稿画面と管理画面向け）のどれか。未設定なら全部のルートを載せる（ローカル、テスト用）。知らない値だと起動に失敗する | `ingest` |
@@ -32,7 +33,7 @@
 | （未設定） | ローカル、テスト用 | 全部 | 起動時に警告を出す |
 
 * `ingest`は`MAC_HASH_KEY`と`SCAN_EVENTS_TOPIC`、`ESP32_API_KEY`が無いと起動に失敗する。`worker`と`app`はどれも要らない
-* `app`は`AUTH0_DOMAIN`と`AUTH0_AUDIENCE`、`PR_ASSET_PRIVATE_BUCKET`が無いと起動に失敗する。ローカル（未設定）では確かめない
+* `app`は`AUTH0_DOMAIN`と`AUTH0_AUDIENCE`、`PR_ASSET_PRIVATE_BUCKET`、`APP_ALLOWED_ORIGINS`が無いと起動に失敗する。ローカル（未設定）では確かめない
 * `app`は、トークンの署名、発行元、宛先、期限に加えて、Auth0のActionで足すクレーム（`https://fun-now-and-future/email`、`https://fun-now-and-future/domain`）を確かめる。ドメインのクレームが`fun.ac.jp`でなければ、署名が正しくても401。管理のルートは、Auth0のRBACの権限（`permissions`）が無ければ403
 * `SERVICE_ROLE`に知らない値を入れると起動に失敗する。綴りの間違いで全部のルートが公開されるのを防ぐため
 * Pub/Subのプッシュサブスクリプションは、`worker`の`/pubsub/scan-events`にOIDCトークン付きで送る。再試行ポリシーとデッドレタートピックを付ける
