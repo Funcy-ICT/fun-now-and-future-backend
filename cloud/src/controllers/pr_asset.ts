@@ -7,6 +7,8 @@ import { PR_ASSET_MAX_FILE_BYTES, PrAssetSubmitInputSchema, PrAssetSubmitRespons
 import { InvalidPrAssetFileError } from "../services/pr_asset_file";
 import { submitPrAsset } from "../services/pr_asset_submit";
 import { PublishPeriodEndedError } from "../services/PublicRelations";
+import { MyPrAssetsResponseSchema } from "../schema/api/my_pr_assets";
+import { listMyPrAssets } from "../services/my_pr_assets";
 
 // exampleはルートごとに書く。エラーは共通のスキーマで、無いとmessageが"string"としか出ないため
 const jsonContent = <T,>(schema: T, description: string, example?: unknown) => ({
@@ -54,6 +56,22 @@ export const createPrAssetRoute = (auth: AuthMiddleware) => {
     },
   });
 
+  const listMyPrAssetsRoute = createRoute({
+    method: "get",
+    path: "/pr-assets/mine",
+    summary: "自分の投稿の一覧(新しい順)",
+    description: "投稿した人のダッシュボードに出す。審査の状態と、却下の理由を返す。画像は返さない",
+    middleware: [auth] as const,
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: jsonContent(MyPrAssetsResponseSchema, "自分の投稿"),
+      401: jsonContent(ErrorResponseSchema, "アクセストークンが無い、または違う", {
+        status: "error",
+        message: "Unauthorized: Invalid or missing access token",
+      }),
+    },
+  });
+
   // 検証に失敗したときは、ほかのルートと同じ形の400を返す
   return new OpenAPIHono<{ Variables: AuthVariables }>({
     defaultHook: (result, c) =>
@@ -69,6 +87,10 @@ export const createPrAssetRoute = (auth: AuthMiddleware) => {
         }
         throw err;
       }
+    })
+    .openapi(listMyPrAssetsRoute, async (c) => {
+      const assets = await listMyPrAssets(c.get("user").uid);
+      return c.json({ assets }, 200);
     });
 };
 
