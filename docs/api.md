@@ -130,8 +130,9 @@ Schedulerから1日1回（04:00 JST想定）呼び出されることを想定し
 管理画面（`admin/`）などのフロントからは、`hono/client`の`hc`で呼ぶ。バックエンドのルートの型から、パス、クエリ、
 レスポンスの型が決まる。バックエンドとずれると、フロントの型チェックでエラーになる。
 
-* 型は`src/app.ts`の`AppType`。入っているのは`/health`とサイネージ向けのルートだけで、`/receiveSensorData`と内部用の
-  ルートは入れていない
+* 型は`src/app.ts`の`AppType`。入っているのは`/health`、サイネージ向けのルート、投稿画面向けのルート（`/pr-assets`）で、
+  `/receiveSensorData`と内部用のルートは入れていない
+* サイネージ向けのルートは`ingest`、`/pr-assets`は`app`に載る。型は一つなので、`hc`に渡すurlで呼び分ける
 * ルートを足すときは、`.openapi(...)`をメソッドチェーンでつなぐ。`app.openapi(...)`を別の文で書くと、型に残らない
 * `npm run build:types`で、`types/`に型定義（`.d.ts`）を出力する。フロントが読むのは`types/app.d.ts`だけで、ほかの
   ファイルは出力のついでにできるもの。`types/`はgitに入れない
@@ -158,8 +159,8 @@ if (res.status === 200) {
 * レスポンスの型に名前を付けたいときは、自分で書かずに`hono/client`の`InferResponseType`を使う
   （例: `InferResponseType<typeof api.getCongestion.$get, 200>`）
 * 相対パスで読むので、使えるのは同じリポジトリの中のフロントだけ。別のリポジトリからは、下のパッケージを使う
-* CORSはまだ設定していない。ブラウザで別のオリジンから呼ぶには、バックエンドに`hono/cors`を入れるか、開発中は
-  Viteのproxyを使う（未定）
+* `/pr-assets`は、`APP_ALLOWED_ORIGINS`（`docs/configuration.md`）のオリジンから呼べる。サイネージ向けのルートには
+  corsを付けていないので、ブラウザから呼ぶときはViteのproxyを使う
 
 ### 別のリポジトリのフロントから使うとき
 `api-types-v0.1.0`のようなタグを切ると、GitHub Actions（`.github/workflows/api-types.yml`）が`types/`を

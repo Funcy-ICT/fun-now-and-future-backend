@@ -33,11 +33,12 @@ const healthRoute = createRoute({
 const healthRoutes = new OpenAPIHono()
   .openapi(healthRoute, (c) => c.json({ status: "ok" as const, message: "Backend is running" }, 200));
 
-//管理画面からhono rpcで呼ぶルート。ルートの型を残すため、メソッドチェーンでつなぐ。
+//サイネージ, 投稿画面, 管理画面からhono rpcで呼ぶルート。ルートの型を残すため、メソッドチェーンでつなぐ。
 //esp32から呼ぶ/receiveSensorDataと、内部用のルートは入れない
 const clientRoutes = new OpenAPIHono()
   .route("/", healthRoutes)
-  .route("/", congestionRoute);
+  .route("/", congestionRoute)
+  .route("/", prAssetRoute);
 
 export type AppType = typeof clientRoutes;
 
