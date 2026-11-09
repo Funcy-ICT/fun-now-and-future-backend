@@ -40,5 +40,6 @@
 | なぜそうしたか | [ADRの一覧](adr/README.md) |
 | 公開するエンドポイントの一覧、内部用のエンドポイント、型の共有 | [api.md](api.md) |
 | 環境変数、サービスの分け方、Firestoreの設定 | [configuration.md](configuration.md) |
-| 技術構成、ローカルでの起動とテスト、デプロイ | [development.md](development.md) |
+| 技術構成、ローカルでの起動とテスト、サービスアカウントのロール | [development.md](development.md) |
+| デプロイの手順と、動いているかの確かめ方 | [deploy.md](deploy.md) |
 | 決まっていないこと、依頼 | Issue |
