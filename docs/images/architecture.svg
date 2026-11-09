@@ -1,152 +1,218 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="790" viewBox="0 0 1400 790" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="990" viewBox="0 0 1400 990" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555555"/>
     </marker>
+    <marker id="arrow-planned" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#868e96"/>
+    </marker>
   </defs>
 
   <!-- 背景。GitHubのダークモードでも読めるよう、白で塗る -->
-  <rect x="0" y="0" width="1400" height="790" fill="#ffffff"/>
+  <rect x="0" y="0" width="1400" height="990" fill="#ffffff"/>
 
-  <!-- 呼び出す側 -->
+  <!-- 呼び出す側（混雑度） -->
   <g id="esp32">
-    <rect x="30" y="60" width="210" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
-    <text x="135" y="90" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">ESP32（ノード）</text>
-    <text x="135" y="112" font-size="12" text-anchor="middle" fill="#495057">1分ごとに検出結果を送る</text>
+    <rect x="30" y="50" width="220" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
+    <text x="140" y="80" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">ESP32（ノード）</text>
+    <text x="140" y="102" font-size="12" text-anchor="middle" fill="#495057">1分ごとに検出結果を送る</text>
   </g>
   <g id="signage">
-    <rect x="30" y="170" width="210" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
-    <text x="135" y="200" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">サイネージ</text>
-    <text x="135" y="222" font-size="12" text-anchor="middle" fill="#495057">ブラウザ（React）</text>
+    <rect x="30" y="160" width="220" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
+    <text x="140" y="190" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">サイネージ</text>
+    <text x="140" y="212" font-size="12" text-anchor="middle" fill="#495057">ブラウザ（React）</text>
   </g>
-  <g id="storage">
-    <rect x="30" y="300" width="210" height="80" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
-    <text x="135" y="330" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Cloud Storage</text>
-    <text x="135" y="352" font-size="12" text-anchor="middle" fill="#495057">公開バケット</text>
-    <text x="135" y="369" font-size="12" text-anchor="middle" fill="#495057">広報の画像</text>
+  <g id="public-bucket">
+    <rect x="30" y="290" width="220" height="80" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
+    <text x="140" y="318" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Cloud Storage</text>
+    <text x="140" y="340" font-size="12" text-anchor="middle" fill="#495057">公開バケット</text>
+    <text x="140" y="357" font-size="12" text-anchor="middle" fill="#495057">承認した広報の画像</text>
+  </g>
+
+  <!-- 呼び出す側（投稿と管理） -->
+  <g id="post">
+    <rect x="30" y="550" width="220" height="80" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
+    <text x="140" y="578" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">投稿画面</text>
+    <text x="140" y="600" font-size="12" text-anchor="middle" fill="#495057">ブラウザ（React）</text>
+    <text x="140" y="617" font-size="12" text-anchor="middle" fill="#495057">Firebase Hosting</text>
+  </g>
+  <g id="auth0">
+    <rect x="30" y="655" width="220" height="55" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
+    <text x="140" y="678" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Auth0</text>
+    <text x="140" y="699" font-size="12" text-anchor="middle" fill="#495057">Google でログイン（fun.ac.jp）</text>
   </g>
   <g id="admin">
-    <rect x="30" y="430" width="210" height="90" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
-    <text x="135" y="460" font-size="15" font-weight="bold" text-anchor="middle" fill="#495057">管理画面（admin/）</text>
-    <text x="135" y="482" font-size="12" text-anchor="middle" fill="#868e96">未実装</text>
-    <text x="135" y="499" font-size="12" text-anchor="middle" fill="#868e96">Cloudflare Access の</text>
-    <text x="135" y="515" font-size="12" text-anchor="middle" fill="#868e96">後ろに置く予定</text>
-  </g>
-  <g id="scheduler">
-    <rect x="30" y="590" width="210" height="120" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
-    <text x="135" y="617" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Cloud Scheduler</text>
-    <text x="228" y="645" font-size="12" text-anchor="end" fill="#495057">5分ごと</text>
-    <text x="228" y="695" font-size="12" text-anchor="end" fill="#495057">毎日 04:00</text>
+    <rect x="30" y="740" width="220" height="100" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="140" y="767" font-size="15" font-weight="bold" text-anchor="middle" fill="#495057">管理画面（admin/）</text>
+    <text x="140" y="789" font-size="12" text-anchor="middle" fill="#868e96">画面と管理のルートは未実装</text>
+    <text x="140" y="806" font-size="12" text-anchor="middle" fill="#868e96">承認は今、手作業で行う</text>
+    <text x="140" y="823" font-size="12" text-anchor="middle" fill="#868e96">Firebase Hosting に置く予定</text>
   </g>
 
   <!-- Cloud Run -->
   <g id="ingest">
-    <rect x="320" y="40" width="320" height="210" rx="8" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="1.5"/>
-    <text x="336" y="66" font-size="16" font-weight="bold" fill="#212529">ingest</text>
-    <text x="624" y="66" font-size="12" text-anchor="end" fill="#1864ab">Cloud Run・公開</text>
-    <text x="336" y="100" font-size="13" fill="#212529">POST /receiveSensorData</text>
-    <text x="336" y="118" font-size="11" fill="#495057">検証し、MAC を HMAC にして publish</text>
-    <text x="336" y="160" font-size="13" fill="#212529">GET /getCongestion</text>
-    <text x="336" y="182" font-size="13" fill="#212529">GET /getCongestionHistory</text>
-    <text x="336" y="204" font-size="13" fill="#212529">GET /signage/assets</text>
-    <text x="336" y="232" font-size="11" fill="#495057">/doc、/ui（Swagger）、/health</text>
+    <rect x="310" y="40" width="320" height="215" rx="8" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="1.5"/>
+    <text x="326" y="66" font-size="16" font-weight="bold" fill="#212529">ingest</text>
+    <text x="614" y="66" font-size="12" text-anchor="end" fill="#1864ab">Cloud Run・公開</text>
+    <text x="326" y="98" font-size="13" fill="#212529">POST /receiveSensorData</text>
+    <text x="614" y="98" font-size="11" text-anchor="end" fill="#1864ab">x-api-key</text>
+    <text x="326" y="116" font-size="11" fill="#495057">検証し、MAC を HMAC にして publish</text>
+    <text x="326" y="150" font-size="13" fill="#212529">GET /getCongestion</text>
+    <text x="614" y="150" font-size="11" text-anchor="end" fill="#868e96">認証なし</text>
+    <text x="326" y="172" font-size="13" fill="#212529">GET /getCongestionHistory</text>
+    <text x="614" y="172" font-size="11" text-anchor="end" fill="#868e96">認証なし</text>
+    <text x="326" y="194" font-size="13" fill="#212529">GET /signage/assets</text>
+    <text x="614" y="194" font-size="11" text-anchor="end" fill="#1864ab">x-api-key</text>
+    <text x="326" y="212" font-size="11" fill="#495057">掲載中の広報の一覧と、画像の URL</text>
+    <text x="326" y="240" font-size="11" fill="#495057">/doc、/ui（Swagger）、/health</text>
+  </g>
+  <g id="app">
+    <rect x="310" y="560" width="320" height="265" rx="8" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="1.5"/>
+    <text x="326" y="586" font-size="16" font-weight="bold" fill="#212529">app</text>
+    <text x="614" y="586" font-size="12" text-anchor="end" fill="#1864ab">Cloud Run・公開</text>
+    <text x="326" y="618" font-size="13" fill="#212529">POST /pr-assets</text>
+    <text x="614" y="618" font-size="11" text-anchor="end" fill="#1864ab">Auth0</text>
+    <text x="326" y="636" font-size="11" fill="#495057">画像の EXIF を消して非公開のバケットに置き、</text>
+    <text x="326" y="652" font-size="11" fill="#495057">審査待ち（pending）で保存する</text>
+    <text x="326" y="682" font-size="13" fill="#212529">GET /pr-assets/mine</text>
+    <text x="614" y="682" font-size="11" text-anchor="end" fill="#1864ab">Auth0</text>
+    <text x="326" y="702" font-size="13" fill="#212529">POST /pr-assets/{id}/withdraw</text>
+    <text x="614" y="702" font-size="11" text-anchor="end" fill="#1864ab">Auth0</text>
+    <text x="326" y="720" font-size="11" fill="#495057">自分の投稿の一覧と、取り下げ</text>
+    <rect x="326" y="740" width="288" height="36" rx="6" fill="#ffffff" stroke="#868e96" stroke-width="1.2" stroke-dasharray="6 4"/>
+    <text x="470" y="763" font-size="12" text-anchor="middle" fill="#868e96">管理のルート（承認、却下、設定）は未実装</text>
+    <text x="326" y="806" font-size="11" fill="#495057">/doc、/ui（Swagger）、/health</text>
   </g>
   <g id="worker">
-    <rect x="320" y="530" width="320" height="190" rx="8" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="1.5"/>
-    <text x="336" y="556" font-size="16" font-weight="bold" fill="#212529">worker</text>
-    <text x="624" y="556" font-size="12" text-anchor="end" fill="#1864ab">Cloud Run・認証必須</text>
-    <text x="336" y="594" font-size="13" fill="#212529">POST /pubsub/scan-events</text>
-    <text x="336" y="612" font-size="11" fill="#495057">pending_scans に保存する</text>
-    <text x="336" y="644" font-size="13" fill="#212529">POST /aggregate</text>
-    <text x="336" y="662" font-size="11" fill="#495057">5分の窓ごとに、location の台数を数える</text>
-    <text x="336" y="694" font-size="13" fill="#212529">POST /internal/batch/calc-max-device</text>
-    <text x="336" y="712" font-size="11" fill="#495057">基準値（max_devices）を計算する</text>
+    <rect x="700" y="300" width="320" height="210" rx="8" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="1.5"/>
+    <text x="716" y="326" font-size="16" font-weight="bold" fill="#212529">worker</text>
+    <text x="1004" y="326" font-size="12" text-anchor="end" fill="#1864ab">Cloud Run・認証必須</text>
+    <text x="716" y="360" font-size="13" fill="#212529">POST /pubsub/scan-events</text>
+    <text x="716" y="378" font-size="11" fill="#495057">pending_scans に保存する</text>
+    <text x="716" y="408" font-size="13" fill="#212529">POST /aggregate</text>
+    <text x="716" y="426" font-size="11" fill="#495057">5分の窓ごとに、location の台数を数える</text>
+    <text x="716" y="442" font-size="11" fill="#495057">ノードの停止と復旧を判定し、ログに出す</text>
+    <text x="716" y="474" font-size="13" fill="#212529">POST /internal/batch/calc-max-device</text>
+    <text x="716" y="492" font-size="11" fill="#495057">基準値（max_devices）を計算する</text>
   </g>
 
   <!-- Firestore -->
   <g id="firestore">
-    <rect x="320" y="300" width="320" height="185" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
-    <text x="336" y="325" font-size="16" font-weight="bold" fill="#212529">Firestore</text>
+    <rect x="310" y="300" width="320" height="210" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
+    <text x="326" y="325" font-size="16" font-weight="bold" fill="#212529">Firestore（東京）</text>
     <g font-size="12">
-      <text x="336" y="349" font-weight="bold" fill="#2b8a3e">表示に使う</text>
-      <text x="416" y="349" fill="#212529">congestion_records,</text>
-      <text x="416" y="366" fill="#212529">max_devices, prAssets</text>
-      <text x="336" y="390" font-weight="bold" fill="#2b8a3e">集計の途中</text>
-      <text x="416" y="390" fill="#212529">pending_scans, daily_summaries,</text>
-      <text x="416" y="407" fill="#212529">excluded_records</text>
-      <text x="336" y="431" font-weight="bold" fill="#2b8a3e">監視・診断</text>
-      <text x="416" y="431" fill="#212529">node_health_stats,</text>
-      <text x="416" y="448" fill="#212529">scan_diagnostics</text>
-      <text x="336" y="472" font-weight="bold" fill="#2b8a3e">設定</text>
-      <text x="416" y="472" fill="#212529">config/*</text>
+      <text x="326" y="349" font-weight="bold" fill="#2b8a3e">表示に使う</text>
+      <text x="406" y="349" fill="#212529">congestion_records,</text>
+      <text x="406" y="366" fill="#212529">max_devices, prAssets</text>
+      <text x="326" y="390" font-weight="bold" fill="#2b8a3e">集計の途中</text>
+      <text x="406" y="390" fill="#212529">pending_scans, daily_summaries,</text>
+      <text x="406" y="407" fill="#212529">excluded_records</text>
+      <text x="326" y="431" font-weight="bold" fill="#2b8a3e">監視・診断</text>
+      <text x="406" y="431" fill="#212529">node_health_stats,</text>
+      <text x="406" y="448" fill="#212529">status/node_last_seen,</text>
+      <text x="406" y="465" fill="#212529">scan_diagnostics</text>
+      <text x="326" y="489" font-weight="bold" fill="#2b8a3e">設定</text>
+      <text x="406" y="489" fill="#212529">config/*, config_history</text>
     </g>
+  </g>
+
+  <!-- 非公開のバケット -->
+  <g id="private-bucket">
+    <rect x="700" y="776" width="220" height="70" rx="8" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
+    <text x="810" y="800" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">Cloud Storage</text>
+    <text x="810" y="820" font-size="12" text-anchor="middle" fill="#495057">非公開のバケット</text>
+    <text x="810" y="836" font-size="12" text-anchor="middle" fill="#495057">投稿された画像</text>
   </g>
 
   <!-- Pub/Sub -->
   <g id="topic-scan-events">
-    <rect x="740" y="65" width="220" height="75" rx="8" fill="#fff4e6" stroke="#f76707" stroke-width="1.5"/>
-    <text x="850" y="93" font-size="13" text-anchor="middle" fill="#d9480f">Pub/Sub トピック</text>
-    <text x="850" y="117" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">scan-events</text>
+    <rect x="750" y="65" width="220" height="75" rx="8" fill="#fff4e6" stroke="#f76707" stroke-width="1.5"/>
+    <text x="860" y="93" font-size="13" text-anchor="middle" fill="#d9480f">Pub/Sub トピック</text>
+    <text x="860" y="117" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">scan-events</text>
   </g>
   <g id="topic-aggregate-runs">
-    <rect x="740" y="655" width="220" height="70" rx="8" fill="#fff4e6" stroke="#f76707" stroke-width="1.5"/>
-    <text x="850" y="682" font-size="13" text-anchor="middle" fill="#d9480f">Pub/Sub トピック</text>
-    <text x="850" y="705" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">aggregate-runs</text>
+    <rect x="860" y="560" width="160" height="70" rx="8" fill="#fff4e6" stroke="#f76707" stroke-width="1.5"/>
+    <text x="940" y="587" font-size="13" text-anchor="middle" fill="#d9480f">Pub/Sub トピック</text>
+    <text x="940" y="610" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">aggregate-runs</text>
+  </g>
+
+  <!-- Cloud Scheduler -->
+  <g id="scheduler">
+    <rect x="700" y="680" width="320" height="66" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="1.5"/>
+    <text x="740" y="700" font-size="12" text-anchor="middle" fill="#495057">5分ごと</text>
+    <text x="810" y="700" font-size="12" text-anchor="middle" fill="#495057">毎日 04:00</text>
+    <text x="1004" y="727" font-size="15" font-weight="bold" text-anchor="end" fill="#212529">Cloud Scheduler</text>
   </g>
 
   <!-- BigQuery -->
   <g id="bigquery">
-    <rect x="1100" y="40" width="270" height="690" rx="8" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5"/>
-    <text x="1116" y="30" font-size="16" font-weight="bold" fill="#212529">BigQuery（東京）</text>
-    <rect x="1120" y="62" width="230" height="100" rx="6" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
-    <text x="1134" y="88" font-size="15" font-weight="bold" fill="#212529">scan_events</text>
-    <text x="1134" y="110" font-size="12" fill="#495057">生データ（MAC はハッシュ値）</text>
-    <text x="1134" y="128" font-size="12" fill="#495057">保持期間は config/retention</text>
-    <text x="1134" y="146" font-size="12" fill="#495057">受信した日でパーティション</text>
-    <text x="1235" y="380" font-size="12" text-anchor="middle" fill="#495057">分析用の SQL で、</text>
-    <text x="1235" y="398" font-size="12" text-anchor="middle" fill="#495057">設定を変えて数え直せる</text>
-    <text x="1235" y="416" font-size="12" text-anchor="middle" fill="#868e96">（設定変更時の再計算は未実装）</text>
-    <rect x="1120" y="640" width="230" height="75" rx="6" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
-    <text x="1134" y="666" font-size="15" font-weight="bold" fill="#212529">aggregate_runs</text>
-    <text x="1134" y="688" font-size="12" fill="#495057">集計の履歴</text>
-    <text x="1134" y="705" font-size="12" fill="#495057">台数、各段の通過数、設定</text>
+    <rect x="1090" y="40" width="280" height="610" rx="8" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5"/>
+    <text x="1106" y="30" font-size="16" font-weight="bold" fill="#212529">BigQuery（東京）</text>
+    <rect x="1110" y="62" width="240" height="100" rx="6" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
+    <text x="1124" y="88" font-size="15" font-weight="bold" fill="#212529">scan_events</text>
+    <text x="1124" y="110" font-size="12" fill="#495057">生データ（MAC はハッシュ値）</text>
+    <text x="1124" y="128" font-size="12" fill="#495057">保持期間は config/retention</text>
+    <text x="1124" y="146" font-size="12" fill="#495057">受信した日でパーティション</text>
+    <text x="1230" y="330" font-size="12" text-anchor="middle" fill="#495057">分析用の SQL で、</text>
+    <text x="1230" y="348" font-size="12" text-anchor="middle" fill="#495057">設定を変えて数え直せる</text>
+    <text x="1230" y="366" font-size="12" text-anchor="middle" fill="#868e96">（設定変更時の再計算は未実装）</text>
+    <rect x="1110" y="555" width="240" height="80" rx="6" fill="#ebfbee" stroke="#37b24d" stroke-width="1.5"/>
+    <text x="1124" y="581" font-size="15" font-weight="bold" fill="#212529">aggregate_runs</text>
+    <text x="1124" y="603" font-size="12" fill="#495057">集計の履歴（任意）</text>
+    <text x="1124" y="620" font-size="12" fill="#495057">台数、各段の通過数、設定</text>
   </g>
 
   <!-- 矢印 -->
   <g stroke="#555555" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
-    <line x1="240" y1="95" x2="318" y2="95"/>
-    <line x1="240" y1="205" x2="318" y2="205"/>
-    <line x1="135" y1="240" x2="135" y2="298"/>
-    <line x1="640" y1="100" x2="738" y2="100"/>
-    <line x1="960" y1="102" x2="1118" y2="102"/>
-    <path d="M850 140 V590 H642"/>
-    <line x1="480" y1="250" x2="480" y2="298"/>
-    <line x1="480" y1="530" x2="480" y2="487"/>
-    <line x1="240" y1="640" x2="318" y2="640"/>
-    <line x1="240" y1="690" x2="318" y2="690"/>
-    <line x1="640" y1="690" x2="738" y2="690"/>
-    <line x1="960" y1="690" x2="1118" y2="690"/>
+    <line x1="250" y1="85" x2="308" y2="85"/>
+    <line x1="250" y1="195" x2="308" y2="195"/>
+    <line x1="140" y1="230" x2="140" y2="288"/>
+    <line x1="630" y1="100" x2="748" y2="100"/>
+    <line x1="970" y1="102" x2="1108" y2="102"/>
+    <line x1="860" y1="140" x2="860" y2="298"/>
+    <line x1="470" y1="255" x2="470" y2="298"/>
+    <line x1="700" y1="405" x2="632" y2="405"/>
+    <line x1="470" y1="560" x2="470" y2="512"/>
+    <line x1="940" y1="510" x2="940" y2="558"/>
+    <line x1="1020" y1="595" x2="1108" y2="595"/>
+    <line x1="740" y1="680" x2="740" y2="512"/>
+    <line x1="810" y1="680" x2="810" y2="512"/>
+    <line x1="250" y1="605" x2="308" y2="605"/>
+    <path d="M310 575 H280 V335 H252"/>
+    <line x1="630" y1="805" x2="698" y2="805"/>
+    <line x1="140" y1="630" x2="140" y2="653"/>
+  </g>
+  <g stroke="#868e96" stroke-width="1.6" fill="none" stroke-dasharray="5 4" marker-end="url(#arrow-planned)">
+    <line x1="140" y1="740" x2="140" y2="712"/>
+    <line x1="250" y1="758" x2="308" y2="758"/>
   </g>
 
   <!-- 矢印の説明 -->
   <g font-size="11" fill="#495057">
-    <text x="279" y="88" text-anchor="middle">x-api-key</text>
-    <text x="279" y="198" text-anchor="middle">x-api-key</text>
-    <text x="143" y="274">直接読む</text>
+    <text x="148" y="264">直接読む</text>
     <text x="689" y="92" text-anchor="middle">publish</text>
     <text x="1030" y="82" text-anchor="middle">BigQuery</text>
     <text x="1030" y="95" text-anchor="middle">サブスクリプション</text>
-    <text x="860" y="360">プッシュ（OIDC）</text>
-    <text x="490" y="279">読む</text>
-    <text x="490" y="513">書く</text>
-    <text x="279" y="633" text-anchor="middle">OIDC</text>
-    <text x="279" y="683" text-anchor="middle">OIDC</text>
-    <text x="689" y="682" text-anchor="middle">publish</text>
+    <text x="870" y="225">プッシュ（OIDC）</text>
+    <text x="480" y="282">読む</text>
+    <text x="666" y="397" text-anchor="middle">読み書き</text>
+    <text x="480" y="540">読み書き</text>
+    <text x="948" y="538">publish</text>
+    <text x="748" y="600">OIDC</text>
+    <text x="818" y="600">OIDC</text>
+    <text x="272" y="440" text-anchor="end">承認でコピー</text>
+    <text x="272" y="456" text-anchor="end">取り下げで消す</text>
+    <text x="665" y="797" text-anchor="middle">置く</text>
+    <text x="148" y="646">ログイン</text>
+    <text x="148" y="731">ログイン</text>
   </g>
 
   <!-- 凡例 -->
   <g font-size="12" fill="#495057">
-    <text x="30" y="760">破線の枠は未実装。worker は Cloud Run の IAM で、Pub/Sub と Cloud Scheduler のサービスアカウントだけが呼べる。</text>
-    <text x="30" y="778">生の MAC は ingest の中だけで扱い、Pub/Sub、BigQuery、Firestore には残らない。</text>
+    <text x="30" y="895">破線は未実装。ルートの右に書いたのは、そのルートの認証（x-api-key は API キー、Auth0 は Auth0 のアクセストークン）。</text>
+    <text x="30" y="913">worker は Cloud Run の IAM で、Pub/Sub と Cloud Scheduler のサービスアカウントだけが呼べる。</text>
+    <text x="30" y="931">aggregate-runs への publish は任意で、環境変数 AGGREGATE_RUNS_TOPIC を設定したときだけ行う。</text>
+    <text x="30" y="949">生の MAC は ingest の中だけで扱い、Pub/Sub、BigQuery、Firestore には残らない。</text>
+    <text x="30" y="967">このシステムのリソースは funcy2022 に置く。fun-now-and-future-510007 には、投稿画面と管理画面の Firebase Hosting と、Auth0 が使う Google の OAuth クライアントだけを置く。</text>
   </g>
 </svg>
