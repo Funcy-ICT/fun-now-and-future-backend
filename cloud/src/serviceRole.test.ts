@@ -28,6 +28,16 @@ describe("createApp", () => {
 		expect(await status("app", "POST", "/internal/batch/calc-max-device")).toBe(404);
 	});
 
+	// appだけをデプロイせずにingestとworkerを公開しても、投稿と管理画面のルートが外から呼べないことを確かめる
+	test("ingestとworkerは/pr-assetsのルートを持たず、appは持つ", async () => {
+		for (const role of ["ingest", "worker"] as const) {
+			expect(await status(role, "GET", "/pr-assets/mine")).toBe(404);
+			expect(await status(role, "POST", "/pr-assets")).toBe(404);
+			expect(await status(role, "POST", "/pr-assets/x/withdraw")).toBe(404);
+		}
+		expect(await status("app", "GET", "/pr-assets/mine")).not.toBe(404);
+	});
+
 	test("allは全部のルートを持つ", async () => {
 		expect(await status("all", "POST", "/receiveSensorData")).not.toBe(404);
 		expect(await status("all", "POST", "/pubsub/scan-events")).not.toBe(404);

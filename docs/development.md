@@ -186,9 +186,7 @@ curl.exe http://localhost:8080/health
 
 ## Cloud Runへのデプロイ
 
-```bash
-gcloud run deploy --source cloud
-```
+手順と、動いているかの確かめ方は[deploy.md](deploy.md)。
 
 ### サービスアカウントとIAMロール
 

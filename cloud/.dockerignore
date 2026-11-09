@@ -3,3 +3,4 @@ lib
 .git
 *.log
 firebase
+scripts
